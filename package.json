@@ -1,0 +1,48 @@
+{
+  "name": "rag-takehome",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.11.0",
+  "engines": {
+    "node": "20.x"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "@ai-sdk/anthropic": "2.0.11",
+    "@ai-sdk/openai": "2.0.23",
+    "@radix-ui/react-avatar": "^1.1.1",
+    "@radix-ui/react-scroll-area": "^1.2.1",
+    "@radix-ui/react-slot": "^1.1.0",
+    "@supabase/supabase-js": "2.50.2",
+    "ai": "5.0.30",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.465.0",
+    "next": "^15.5.5",
+    "next-themes": "^0.4.3",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "react-markdown": "^9.0.1",
+    "tailwind-merge": "^2.5.5",
+    "tailwindcss-animate": "^1.0.7",
+    "zod": "3.25.76"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "1.9.4",
+    "@types/node": "^20",
+    "@types/react": "19.1.4",
+    "@types/react-dom": "19.1.5",
+    "identity-obj-proxy": "^3.0.0",
+    "postcss": "^8",
+    "tailwindcss": "^3.4.1",
+    "typescript": "5.7.3",
+    "vitest": "3.2.4"
+  }
+}
