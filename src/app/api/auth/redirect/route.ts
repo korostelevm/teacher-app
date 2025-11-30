@@ -19,10 +19,14 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-
     const clientId = process.env.GOOGLE_CLIENT_ID || "GOOGLE_CLIENT_ID_MISSING";
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET || "GOOGLE_CLIENT_SECRET_MISSING";
     const redirectUri = process.env.GOOGLE_CALLBACK_URL || "http://localhost:3000/api/auth/redirect";
+    
+    // Determine the correct origin for redirects (handle Railway's internal domain issue)
+    const origin = process.env.RAILWAY_PUBLIC_DOMAIN
+      ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
+      : request.nextUrl.origin;
 
     // Exchange code for token with Google
     const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
@@ -104,9 +108,7 @@ export async function GET(request: NextRequest) {
     );
 
     // Redirect to home with auth
-    const response = NextResponse.redirect(
-      new URL("/", request.nextUrl.origin)
-    );
+    const response = NextResponse.redirect(new URL("/", origin));
 
     // Set user session cookie
     response.cookies.set("userId", user._id.toString(), {
@@ -121,8 +123,14 @@ export async function GET(request: NextRequest) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error("OAuth callback error:", errorMessage);
     console.error("Full error:", error);
+    
+    // Determine the correct origin for error redirect
+    const origin = process.env.RAILWAY_PUBLIC_DOMAIN
+      ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
+      : request.nextUrl.origin;
+    
     return NextResponse.redirect(
-      new URL(`/?error=auth_failed&details=${encodeURIComponent(errorMessage)}`, request.nextUrl.origin)
+      new URL(`/?error=auth_failed&details=${encodeURIComponent(errorMessage)}`, origin)
     );
   }
 }
