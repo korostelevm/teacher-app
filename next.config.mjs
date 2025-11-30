@@ -2,9 +2,13 @@
 const nextConfig = {
   output: 'standalone',
   eslint: {
-    // Build should not fail on ESLint errors during the Next.js build
-    // The circular structure error is a known issue with plugin introspection
-    ignoreDuringBuilds: true,
+    // Only ignore ESLint during builds in production
+    // This allows catching errors in development
+    ignoreDuringBuilds: process.env.NODE_ENV === 'production',
+  },
+  typescript: {
+    // Enforce strict type checking during build
+    tsconfigPath: './tsconfig.json',
   },
 };
 
