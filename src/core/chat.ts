@@ -20,7 +20,7 @@ export async function streamChatResponse(
   const modelName = process.env.OPENAI_MODEL || "gpt-4o-mini";
   
   const result = streamText({
-    model: openaiClient(modelName),
+    model: openaiClient()(modelName),
     prompt: userInput,
   });
 

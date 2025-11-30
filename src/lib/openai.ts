@@ -27,19 +27,22 @@ export function getOpenAIClient() {
  * Pre-configured OpenAI provider function
  * Use this for convenience when you know the API key is set
  * 
+ * This is a function that validates and returns the openai client,
+ * allowing validation to happen at runtime rather than build time.
+ * 
  * Usage with Vercel AI SDK:
  * ```ts
  * import { openaiClient } from "@/lib/openai";
  * import { generateText } from "ai";
  * 
  * const result = await generateText({
- *   model: openaiClient("gpt-5-nano"),
+ *   model: openaiClient()("gpt-4o-mini"),
  *   prompt: "Hello!",
  * });
  * ```
  */
-export const openaiClient = (() => {
-  // Validate API key is set
+export function openaiClient() {
+  // Validate API key is set at runtime (not build time)
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey || apiKey === "sk-placeholder-your-openai-api-key-here") {
     throw new Error(
@@ -48,5 +51,5 @@ export const openaiClient = (() => {
   }
   // Return the openai function which reads from process.env.OPENAI_API_KEY
   return openai;
-})();
+}
 
