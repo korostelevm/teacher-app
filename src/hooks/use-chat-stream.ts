@@ -11,6 +11,13 @@ interface UseChatStreamOptions {
   onError: (error: Error) => void;
 }
 
+export interface ChatResponse {
+  messageId: string;
+  channel: string;
+  threadId: string;
+  timestamp: string;
+}
+
 /**
  * Custom hook for handling chat streaming via Ably
  */
@@ -25,7 +32,7 @@ export function useChatStream({
   const subscriptionsRef = useRef<Array<() => void>>([]);
 
   const sendMessage = useCallback(
-    async (content: string, assistantMessageId: string) => {
+    async (content: string, assistantMessageId: string, threadId?: string | null): Promise<ChatResponse> => {
       if (!ably) {
         throw new Error("Ably not connected. Please wait a moment and try again.");
       }
@@ -118,7 +125,7 @@ export function useChatStream({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ content, messageId: requestMessageId }),
+        body: JSON.stringify({ content, messageId: requestMessageId, threadId }),
       });
 
       if (!response.ok) {
@@ -126,13 +133,14 @@ export function useChatStream({
         throw new Error(errorData.error || "Failed to send message");
       }
 
-      await response.json();
+      return await response.json();
     },
     [
       ably,
       chatEndpoint,
       onTextChunk,
       onComplete,
+      onError,
     ]
   );
 

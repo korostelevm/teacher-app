@@ -1,14 +1,24 @@
-import { NextResponse } from "next/server";
-import Ably from "ably";
-import { streamChatResponse } from "@/core/chat";
+import { NextRequest, NextResponse } from "next/server";
+import { Agent } from "@/core/agent";
+import { ThreadManager } from "@/core/thread-manager";
+import { createMessage } from "@/models/message";
 
 /**
  * Chat API route handler for processing messages
  * Streams response via Ably Realtime
  */
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const { content, messageId } = await request.json();
+    // Check authentication
+    const userId = request.cookies.get("userId")?.value;
+    if (!userId) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    const { content, messageId, threadId } = await request.json();
 
     if (!content || typeof content !== "string") {
       return NextResponse.json(
@@ -17,36 +27,58 @@ export async function POST(request: Request) {
       );
     }
 
-    const apiKey = process.env.ABLY_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json(
-        { error: "ABLY_API_KEY is not configured" },
-        { status: 500 }
-      );
-    }
-
     // Generate a unique message ID if not provided
     const msgId = messageId || `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     
-    // Create Ably REST client for publishing
-    const ably = new Ably.Rest({ key: apiKey });
-    const channel = ably.channels.get(`chat:${msgId}`);
+    // Create or use existing thread
+    let currentThreadId = threadId;
+    if (!currentThreadId) {
+      try {
+        const newThread = await ThreadManager.create(
+          `Chat - ${new Date().toLocaleString()}`,
+          userId
+        );
+        currentThreadId = newThread._id.toString();
+      } catch (error) {
+        console.error("[Chat API] Failed to create thread:", error);
+        return NextResponse.json(
+          { error: "Failed to create chat thread" },
+          { status: 500 }
+        );
+      }
+    }
+
+    // Save user message to database
+    try {
+      await createMessage({
+        threadId: currentThreadId,
+        role: "user",
+        content,
+        authorId: userId,
+      });
+    } catch (error) {
+      console.error("[Chat API] Failed to save user message:", error);
+      return NextResponse.json(
+        { error: "Failed to save message" },
+        { status: 500 }
+      );
+    }
     
     // Start streaming in the background - don't await it
     // This allows us to return the HTTP response immediately
-    streamChatResponse(content, channel, msgId).catch((error) => {
-      console.error("[Chat API] Stream error:", error);
-      // Publish error to channel so client can handle it
-      channel.publish("stream:error", {
-        messageId: msgId,
-        error: error.message || "Streaming error occurred",
-      });
+    // Message is guaranteed persisted at this point (await above)
+    Agent.createResponse({
+      threadId: currentThreadId,
+      responseMessageId: msgId,
+    }).catch((error) => {
+      console.error("[Chat API] Agent error:", error);
     });
 
-    // Return immediately - streaming happens in background via Ably
+    // Return immediately - streaming happens in background
     return NextResponse.json({
       messageId: msgId,
       channel: `chat:${msgId}`,
+      threadId: currentThreadId,
       timestamp: new Date().toISOString(),
     });
 

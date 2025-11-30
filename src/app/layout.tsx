@@ -3,6 +3,9 @@ import localFont from "next/font/local";
 import { ThemeProvider } from "next-themes";
 import "./globals.css";
 
+// Initialize database connection at app level
+import "@/lib/db";
+
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
   variable: "--font-geist-sans",

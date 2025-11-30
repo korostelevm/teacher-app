@@ -5,6 +5,8 @@
 import { streamText } from "ai";
 import { openaiClient } from "@/lib/openai";
 import Ably from "ably";
+import { createMessage } from "@/models/message";
+import { Agent } from "@/core/agent";
 
 /**
  * Stream chat response directly to Ably channel
@@ -12,7 +14,9 @@ import Ably from "ably";
 export async function streamChatResponse(
   userInput: string,
   channel: ReturnType<Ably.Rest["channels"]["get"]>,
-  messageId: string
+  messageId: string,
+  threadId: string,
+  userId: string
 ): Promise<string> {
   // Optimize for lower latency:
   // Use faster model (gpt-4o-mini is typically fastest, ~1-2s TTFT vs 4-5s for larger models)
@@ -40,6 +44,19 @@ export async function streamChatResponse(
       text: chunk,
       messageId,
     });
+  }
+
+  // Save assistant message to database (system message)
+  try {
+    await createMessage({
+      threadId,
+      role: "assistant",
+      content: fullText,
+      authorId: Agent.SYSTEM_ID,
+    });
+  } catch (error) {
+    console.error("[Chat] Failed to save assistant message:", error);
+    // Don't throw, just log - streaming already completed
   }
 
   // Publish completion

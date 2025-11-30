@@ -1,7 +1,5 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { UploadCloud, Send, X } from "lucide-react";
 import { useState, useRef, useCallback } from "react";
 import { cn } from "@/lib/utils";
@@ -50,7 +48,7 @@ export function ChatInput({
   const [content, setContent] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const textAreaRef = useRef<HTMLTextAreaElement>(null);
+  const textAreaRef = useRef<HTMLInputElement>(null);
 
   /**
    * Handles the message submission process.
@@ -103,13 +101,12 @@ export function ChatInput({
               <span className="text-sm truncate max-w-[200px]">
                 {file.name}
               </span>
-              <Button
-                variant="ghost"
-                className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+              <button
+                className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center hover:bg-muted rounded"
                 onClick={() => removeFile(index)}
               >
                 <X className="h-4 w-4" />
-              </Button>
+              </button>
             </div>
           ))}
         </div>
@@ -124,20 +121,19 @@ export function ChatInput({
           accept="image/*,.pdf,.doc,.docx,.txt,.csv"
           data-testid="file-input"
         />
-        <Button
-          variant="outline"
+        <button
           onClick={() => fileInputRef.current?.click()}
           disabled={isUploading || isLoading}
+          className="flex items-center justify-center w-10 h-10 rounded-md border border-input bg-transparent hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <UploadCloud className="h-5 w-5" />
-        </Button>
-        <Textarea
+        </button>
+        <input
           ref={textAreaRef}
           value={content}
           onChange={(e) => setContent(e.target.value)}
           placeholder="Type your message..."
-          className="flex-1 min-h-[44px] resize-none"
-          rows={1}
+          className="flex-1 h-10 px-3 py-2 rounded-md border border-input bg-transparent resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
           disabled={isLoading}
           autoFocus
           onKeyDown={(e) => {
@@ -148,14 +144,15 @@ export function ChatInput({
             }
           }}
         />
-        <Button
+        <button
           onClick={handleSend}
           disabled={
             (!content.trim() && files.length === 0) || isLoading || isUploading
           }
+          className="flex items-center justify-center w-10 h-10 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Send className={cn("h-5 w-5", isLoading && "animate-spin")} />
-        </Button>
+        </button>
       </div>
     </div>
   );

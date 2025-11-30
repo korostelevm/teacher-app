@@ -14,6 +14,11 @@ import { useChatStream } from "@/hooks/use-chat-stream";
  */
 export interface ChatContainerProps {
   /**
+   * Optional thread ID to load messages from
+   */
+  threadId?: string | null;
+
+  /**
    * Optional CSS class name to apply custom styles
    * @default ""
    */
@@ -58,6 +63,7 @@ export interface ChatContainerProps {
  * @returns {JSX.Element} A chat interface with message history and input controls
  */
 export function ChatContainer({
+  threadId: initialThreadId,
   className = "",
   uploadEndpoint = "/api/upload",
   chatEndpoint = "/api/chat",
@@ -68,11 +74,43 @@ export function ChatContainer({
   const [isUploading, setIsUploading] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [shouldAutoScroll, setShouldAutoScroll] = useState(false);
+  const [threadId, setThreadId] = useState<string | null>(initialThreadId || null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   // Track current assistant message
   const currentAssistantMessageIdRef = useRef<string | null>(null);
+
+  // Load messages when thread changes
+  useEffect(() => {
+    if (initialThreadId) {
+      setThreadId(initialThreadId);
+      const loadMessages = async () => {
+        try {
+          const response = await fetch(`/api/threads/${initialThreadId}/messages`);
+          if (!response.ok) {
+            throw new Error(`Failed to load messages: ${response.status} ${response.statusText}`);
+          }
+          const data = await response.json();
+          const dbMessages = data.messages || [];
+          // Convert DB messages to Message type
+          const displayMessages: Message[] = dbMessages.map((msg: any) => ({
+            id: msg._id,
+            content: msg.content,
+            role: msg.role,
+          }));
+          setMessages(displayMessages);
+        } catch (error) {
+          console.error("Failed to load thread messages:", error);
+          onError?.(error instanceof Error ? error : new Error("Failed to load thread messages"));
+        }
+      };
+      loadMessages();
+    } else {
+      setMessages([]);
+      setThreadId(null);
+    }
+  }, [initialThreadId]);
 
   // Use chat stream hook for streaming
   const { sendMessage } = useChatStream({
@@ -197,7 +235,11 @@ export function ChatContainer({
     setMessages((prev) => [...prev, assistantMessage]);
 
     try {
-      await sendMessage(content, assistantMessageId);
+      const response = await sendMessage(content, assistantMessageId, threadId);
+      // Store thread ID from response for subsequent messages
+      if (response?.threadId && !threadId) {
+        setThreadId(response.threadId);
+      }
     } catch (error) {
       console.error("Chat error:", error);
       setIsLoading(false);
@@ -253,7 +295,7 @@ const scrollToBottomImmediate = useCallback(() => {
 
   return (
     <div
-      className={`container max-w-7xl mx-auto h-[calc(100vh-2rem)] p-4 ${className}`}
+      className={`h-full w-full flex flex-col ${className}`}
     >
       <Card className="h-full flex flex-col">
         <ScrollArea
