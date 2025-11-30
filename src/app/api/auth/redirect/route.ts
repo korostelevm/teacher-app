@@ -114,9 +114,11 @@ export async function GET(request: NextRequest) {
 
     return response;
   } catch (error) {
-    console.error("OAuth callback error:", error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("OAuth callback error:", errorMessage);
+    console.error("Full error:", error);
     return NextResponse.redirect(
-      new URL("/?error=auth_failed", request.nextUrl.origin)
+      new URL(`/?error=auth_failed&details=${encodeURIComponent(errorMessage)}`, request.nextUrl.origin)
     );
   }
 }
