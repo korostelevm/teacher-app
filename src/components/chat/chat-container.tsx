@@ -6,6 +6,7 @@ import { ChatInput } from "@/components/chat/chat-input";
 import { ChatMessage } from "@/components/chat/chat-message";
 import { useRef, useState, useEffect, useCallback } from "react";
 import type { Message } from "@/types/chat";
+import { useChatStream } from "@/hooks/use-chat-stream";
 
 /**
  * Props interface for the ChatContainer component
@@ -69,6 +70,67 @@ export function ChatContainer({
   const [shouldAutoScroll, setShouldAutoScroll] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  // Track current assistant message
+  const currentAssistantMessageIdRef = useRef<string | null>(null);
+
+  // Use chat stream hook for streaming
+  const { sendMessage } = useChatStream({
+    chatEndpoint,
+    onTextChunk: (chunk) => {
+      if (currentAssistantMessageIdRef.current) {
+        setMessages((prev) =>
+          prev.map((msg) => {
+            if (msg.id === currentAssistantMessageIdRef.current) {
+              return { ...msg, content: msg.content + chunk };
+            }
+            return msg;
+          })
+        );
+      }
+    },
+    onComplete: (finalResponse) => {
+      setIsLoading(false);
+      
+      // Update final message with response
+      if (currentAssistantMessageIdRef.current) {
+        setMessages((prev) =>
+          prev.map((msg) => {
+            if (msg.id === currentAssistantMessageIdRef.current) {
+              return {
+                ...msg,
+                content: finalResponse || msg.content || "No response generated.",
+              };
+            }
+            return msg;
+          })
+        );
+      }
+      
+      currentAssistantMessageIdRef.current = null;
+    },
+    onError: (error) => {
+      console.error("Chat stream error:", error);
+      setIsLoading(false);
+      
+      if (currentAssistantMessageIdRef.current) {
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === currentAssistantMessageIdRef.current
+              ? {
+                  ...msg,
+                  content: error.message || "Sorry, there was an error processing your message.",
+                }
+              : msg
+          )
+        );
+      }
+      
+      onError?.(error);
+      currentAssistantMessageIdRef.current = null;
+    },
+  });
+
   const handleSendMessage = async (content: string, files?: File[]) => {
     // Add user message immediately
     const messageId = crypto.randomUUID();
@@ -121,41 +183,40 @@ export function ChatContainer({
       }
     }
 
-    // Send message to chat endpoint
+    // Send message to chat endpoint and stream response via Ably
     setIsLoading(true);
+    const assistantMessageId = crypto.randomUUID();
+    currentAssistantMessageIdRef.current = assistantMessageId;
+    
+    // Create placeholder assistant message for streaming
+    const assistantMessage: Message = {
+      id: assistantMessageId,
+      content: "", // Empty content - UI will show "Thinking..." when empty
+      role: "assistant",
+    };
+    setMessages((prev) => [...prev, assistantMessage]);
+
     try {
-      const response = await fetch(chatEndpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ content }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to send message");
-      }
-
-      const data = await response.json();
-
-      // Add assistant message
-      const assistantMessage: Message = {
-        id: crypto.randomUUID(),
-        content: data.message,
-        role: "assistant",
-      };
-      setMessages((prev) => [...prev, assistantMessage]);
+      await sendMessage(content, assistantMessageId);
     } catch (error) {
       console.error("Chat error:", error);
-      // Add error message as assistant message
-      const errorMessage: Message = {
-        id: crypto.randomUUID(),
-        content: "Sorry, there was an error processing your message. Please try again.",
-        role: "assistant",
-      };
-      setMessages((prev) => [...prev, errorMessage]);
-    } finally {
       setIsLoading(false);
+      
+      // Update assistant message with error
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === assistantMessageId
+            ? {
+                ...msg,
+                content: error instanceof Error 
+                  ? `Sorry, there was an error: ${error.message}` 
+                  : "Sorry, there was an error processing your message. Please try again.",
+              }
+            : msg
+        )
+      );
+      onError?.(error as Error);
+      currentAssistantMessageIdRef.current = null;
     }
   };
 

@@ -53,9 +53,13 @@ export function ChatMessage({ message }: ChatMessageProps) {
         </AvatarFallback>
       </Avatar>
       <Card className={cn("p-4 max-w-[80%] ", isUser ? "bg-muted" : "bg-slate-700")}>
-        <ReactMarkdown className="text-sm whitespace-pre-wrap prose dark:prose-invert prose-sm">
-          {message.content}
-        </ReactMarkdown>
+        {message.content ? (
+          <ReactMarkdown className="text-sm whitespace-pre-wrap prose dark:prose-invert prose-sm">
+            {message.content}
+          </ReactMarkdown>
+        ) : (
+          <div className="text-sm text-muted-foreground italic">Thinking...</div>
+        )}
         {message.files && message.files.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-1">
             {message.files.map((file, index) => (
