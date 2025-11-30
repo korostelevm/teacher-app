@@ -89,15 +89,19 @@ export async function GET(request: NextRequest) {
       await user.save();
     }
 
-    // Create session in database
+    // Create or update session in database
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7); // 7 days from now
 
-    const session = await Session.create({
-      userId: user._id.toString(),
-      token: user._id.toString(),
-      expiresAt,
-    });
+    await Session.findOneAndUpdate(
+      { userId: user._id.toString() },
+      {
+        userId: user._id.toString(),
+        token: user._id.toString(),
+        expiresAt,
+      },
+      { upsert: true, new: true }
+    );
 
     // Redirect to home with auth
     const response = NextResponse.redirect(
