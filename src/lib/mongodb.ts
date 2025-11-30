@@ -25,7 +25,6 @@ export async function connectDB() {
 
   if (!cached.promise) {
     const opts: mongoose.ConnectOptions = {
-      bufferCommands: false,
       authSource: "admin",
       retryWrites: true,
       w: "majority",

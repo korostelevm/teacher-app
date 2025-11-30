@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+
     const clientId = process.env.GOOGLE_CLIENT_ID || "GOOGLE_CLIENT_ID_MISSING";
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET || "GOOGLE_CLIENT_SECRET_MISSING";
     const redirectUri = process.env.GOOGLE_CALLBACK_URL || "http://localhost:3000/api/auth/redirect";
@@ -74,12 +75,16 @@ export async function GET(request: NextRequest) {
         photo: googleUser.picture,
         accessToken: accessToken,
         refreshToken: tokenData.refresh_token,
+        role: "user",
       });
     } else {
-      // Update tokens
+      // Update tokens and ensure role is set
       user.accessToken = accessToken;
       if (tokenData.refresh_token) {
         user.refreshToken = tokenData.refresh_token;
+      }
+      if (!user.role) {
+        user.role = "user";
       }
       await user.save();
     }
