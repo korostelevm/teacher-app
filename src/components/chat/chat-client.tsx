@@ -4,14 +4,16 @@ import { ChatContainer } from "@/components/chat/chat-container";
 import { Message } from "@/types/chat";
 import { useTheme } from "next-themes";
 
+import React from "react";
+
 /**
  * ChatClient component that provides a chat interface with message history,
  * file upload capabilities, and message sending functionality.
  * 
  * @component
- * @returns {JSX.Element} A chat interface with message history and input controls
+ * @returns {React.JSX.Element} A chat interface with message history and input controls
  */
-function ChatClient(): JSX.Element {
+function ChatClient(): React.JSX.Element {
   const { theme } = useTheme();
 
   const handleMessageSent = (message: Message) => {

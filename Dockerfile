@@ -14,8 +14,8 @@ COPY . .
 # Build the app
 RUN npm run build
 
-# Expose port
+# Expose port (Railway will override with PORT env var)
 EXPOSE 3000
 
-# Start the app
-CMD ["npm", "start"]
+# Start the app (Railway's PORT env var takes precedence)
+CMD ["node", ".next/standalone/server.js"]
