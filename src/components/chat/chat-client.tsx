@@ -32,7 +32,7 @@ function ChatClient(): React.JSX.Element {
   return (
     <div className={`${theme ?? "dark"} h-screen flex flex-col`}>
       <div className="flex justify-between items-center p-4 border-b">
-        <h1 className="font-semibold">Magic School RAG</h1>
+        <h1 className="font-semibold">Magic School</h1>
         <ProfileMenu user={user} />
       </div>
       <div className="flex-1 overflow-hidden flex gap-4">
@@ -44,6 +44,7 @@ function ChatClient(): React.JSX.Element {
             threadId={selectedThreadId}
           onMessageSent={handleMessageSent}
           onError={handleError}
+          user={user}
         />
         </div>
       </div>

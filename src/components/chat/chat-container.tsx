@@ -7,6 +7,7 @@ import { ChatMessage } from "@/components/chat/chat-message";
 import { useRef, useState, useEffect, useCallback } from "react";
 import type { Message } from "@/types/chat";
 import { useChatStream } from "@/hooks/use-chat-stream";
+import type { User } from "@/hooks/use-user";
 
 /**
  * Props interface for the ChatContainer component
@@ -47,6 +48,11 @@ export interface ChatContainerProps {
    * @param error The error that occurred
    */
   onError?: (error: Error) => void;
+
+  /**
+   * Optional user object containing current user information
+   */
+  user?: User | null;
 }
 
 /**
@@ -69,6 +75,7 @@ export function ChatContainer({
   chatEndpoint = "/api/chat",
   onMessageSent,
   onError,
+  user,
 }: ChatContainerProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isUploading, setIsUploading] = useState(false);
@@ -95,9 +102,10 @@ export function ChatContainer({
           const dbMessages = data.messages || [];
           // Convert DB messages to Message type
           const displayMessages: Message[] = dbMessages.map((msg: any) => ({
-            id: msg._id,
+            id: msg.id,
             content: msg.content,
             role: msg.role,
+            author: msg.author,
           }));
           setMessages(displayMessages);
         } catch (error) {
@@ -177,6 +185,11 @@ export function ChatContainer({
       content,
       role: "user",
       files,
+      author: user ? {
+        displayName: user.displayName,
+        email: user.email,
+        photo: user.photo,
+      } : undefined,
     };
     setMessages((prev) => [...prev, newMessage]);
     onMessageSent?.(newMessage);

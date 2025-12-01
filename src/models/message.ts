@@ -54,7 +54,9 @@ export async function createMessage({
 export async function getThreadMessages(
   threadId: Types.ObjectId | string
 ): Promise<IMessage[]> {
-  return Message.find({ threadId }).sort({ createdAt: 1 });
+  return Message.find({ threadId })
+    .populate("authorId", "displayName email photo")
+    .sort({ createdAt: 1 });
 }
 
 export async function deleteThreadMessages(

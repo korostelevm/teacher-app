@@ -16,7 +16,20 @@ export async function GET(
 
     const { threadId } = await params;
     const messages = await getThreadMessages(threadId);
-    return NextResponse.json({ messages });
+    
+    // Transform messages to include author information
+    const transformedMessages = messages.map((msg: any) => ({
+      id: msg._id.toString(),
+      content: msg.content,
+      role: msg.role,
+      author: msg.authorId ? {
+        displayName: msg.authorId.displayName,
+        email: msg.authorId.email,
+        photo: msg.authorId.photo,
+      } : undefined,
+    }));
+    
+    return NextResponse.json({ messages: transformedMessages });
   } catch (error) {
     console.error("[Thread Messages API] Error:", error);
     return NextResponse.json(

@@ -1,10 +1,11 @@
 "use client";
 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
 import { BotIcon, FileIcon, ImageIcon, UserIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
+import type { Message } from "@/types/chat";
 
 /**
  * Props interface for the ChatMessage component
@@ -14,16 +15,7 @@ interface ChatMessageProps {
   /** 
    * Message object containing content and metadata
    */
-  message: {
-    /** The text content of the message */
-    content: string;
-    /** Indicates whether the message is from the user or the AI assistant */
-    role: "user" | "assistant";
-    /** Optional array of files attached to the message */
-    files?: File[];
-    /** Optional debug information to display with the message */
-    debug?: string;
-  };
+  message: Message;
 }
 
 /**
@@ -45,6 +37,9 @@ export function ChatMessage({ message }: ChatMessageProps) {
   return (
     <div className={cn("flex gap-3", isUser ? "flex-row-reverse" : "flex-row")}>
       <Avatar className={cn(isUser ? "bg-slate-700" : "bg-muted")}>
+        {isUser && message.author?.photo && (
+          <AvatarImage src={message.author.photo} alt={message.author.displayName} />
+        )}
         <AvatarFallback>
           {isUser ? 
             <UserIcon data-testid="user-icon" /> : 
