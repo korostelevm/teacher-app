@@ -9,7 +9,7 @@ import { Message } from "@/types/chat";
 import { useTheme } from "next-themes";
 import { useUser } from "@/hooks/use-user";
 import { useAbly } from "@/hooks/use-ably";
-import { Sparkles, BookOpen, Brain, Loader2, MessageSquare } from "lucide-react";
+import { Sparkles, BookOpen, Brain, Loader2, MessageSquare, Home } from "lucide-react";
 
 import React, { useState, useEffect } from "react";
 
@@ -156,6 +156,13 @@ function ChatClient(): React.JSX.Element {
     setTriggerGreeting(true);
   };
 
+  const handleGoHome = () => {
+    setShowChat(false);
+    setSelectedThreadId(null);
+    setSelectedLessonPlanId(null);
+    setTriggerGreeting(false);
+  };
+
   // Show chat if a thread is selected OR if user clicked "Let's Get Started"
   const shouldShowChat = showChat || selectedThreadId !== null;
   
@@ -165,7 +172,14 @@ function ChatClient(): React.JSX.Element {
   return (
     <div className={`${theme ?? "dark"} h-screen flex flex-col`}>
       <div className="flex justify-between items-center p-4 border-b">
-        <h1 className="font-semibold">Magic School</h1>
+        <button
+          type="button"
+          onClick={handleGoHome}
+          className="flex items-center gap-2 font-semibold hover:text-violet-400 transition-colors group"
+        >
+          <Home className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+          <span>Magic School</span>
+        </button>
         <ProfileMenu user={user} />
       </div>
       <div className="flex-1 overflow-hidden flex">

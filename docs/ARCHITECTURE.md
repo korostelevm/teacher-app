@@ -19,6 +19,7 @@ flowchart TB
         API[API Routes]
         Agent[Chat Agent]
         MemAgent[Memory Agent]
+        NamerAgent[Thread Namer Agent]
         Tools[Tool System]
     end
     
@@ -41,6 +42,9 @@ flowchart TB
     Agent -.->|Publish| AblyServer
     API --> MemAgent
     MemAgent --> OpenAI
+    Agent --> NamerAgent
+    NamerAgent --> OpenAI
+    NamerAgent --> MongoDB
     API --> Google
     Agent --> MongoDB
     MemAgent --> MongoDB
@@ -109,9 +113,12 @@ sequenceDiagram
     end
     
     Agent->>DB: Save assistant message
+    Agent->>Agent: Queue thread naming
     Agent->>AblyS: publish stream:complete
     AblyS-->>Ably: Completion event
     Ably-->>UI: Finalize message
+    
+    Note over Agent,DB: Background: Thread naming runs if 2nd or 4th message
 ```
 
 ## Tool Execution Flow
@@ -147,6 +154,59 @@ flowchart TB
         addLessonAssessment
         addLessonDifferentiation
     end
+```
+
+## Background Workers
+
+The system uses queue-based background workers for non-blocking post-processing.
+
+```mermaid
+flowchart LR
+    subgraph Triggers["Trigger Points"]
+        UM[User Message Saved]
+        AM[Assistant Message Saved]
+    end
+    
+    subgraph Workers["Background Workers"]
+        MW[Memory Worker]
+        TN[Thread Namer]
+    end
+    
+    subgraph Actions["Actions"]
+        ME[Extract Memories]
+        MC[Consolidate Memories]
+        GT[Generate Title]
+        UT[Update Thread]
+    end
+    
+    UM --> MW
+    AM --> MW
+    AM --> TN
+    
+    MW --> ME
+    MW --> MC
+    TN --> GT
+    GT --> UT
+```
+
+### Thread Namer Worker
+
+Automatically generates descriptive titles for threads based on conversation content.
+
+- **Triggers**: After 2nd message (first exchange) and 4th message (refined context)
+- **Skip conditions**: Thread already has custom title, wrong message count
+- **Model**: GPT-4o-mini (fast/cheap)
+- **Output**: Title under 50 characters, topic-focused
+
+```mermaid
+flowchart TB
+    A[Message Saved] --> B{Message count?}
+    B -->|2 or 4| C{Has custom title?}
+    B -->|Other| X[Skip]
+    C -->|Yes| X
+    C -->|No| D[Load messages]
+    D --> E[Call LLM]
+    E --> F[Update thread title]
 ```
 
 ## Memory System

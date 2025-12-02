@@ -13,6 +13,7 @@ import { getMessageToolCalls } from "@/models/tool-call";
 import { Memory, type IMemory, recordMemoryAccess, findActiveMemories } from "@/models/memory";
 import { User, type IUser } from "@/models/user";
 import { createTools } from "@/tools";
+import { queueThreadNaming } from "@/workers/thread-namer-worker";
 
 export interface AgentConfig {
   systemPrompt?: string;
@@ -330,6 +331,9 @@ export class Agent {
           messageId: responseMessageId,
           referencedMemories: referencedMemoryIds,
         });
+
+        // Queue thread naming (will only run if this is the 2nd message)
+        queueThreadNaming(threadId);
       }
 
       await publishStreamComplete(responseMessageId, responseText, memoriesUsed);

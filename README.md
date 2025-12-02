@@ -1,5 +1,13 @@
 # AI Systems Engineering Take-Home
 
+## 🚀 Live Demo
+
+**Try it now:** [https://magic-school.mikekorostelev.com/](https://magic-school.mikekorostelev.com/)
+
+> **Note:** You'll need a Google account to sign in and use the application.
+
+---
+
 ## Overview
 
 This take-home evaluates your ability to design and implement a small but complete AI-powered system that demonstrates thoughtful architecture, reasoning, and applied machine learning or language model integration.
