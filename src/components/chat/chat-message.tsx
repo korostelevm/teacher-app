@@ -1,11 +1,86 @@
 "use client";
 
+import { useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
-import { BotIcon, FileIcon, ImageIcon, UserIcon } from "lucide-react";
+import { BotIcon, FileIcon, ImageIcon, UserIcon, WrenchIcon, Loader2Icon, CheckCircleIcon, ChevronDownIcon, ChevronRightIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
-import type { Message } from "@/types/chat";
+import type { Message, ToolCall } from "@/types/chat";
+
+/**
+ * Props interface for the ToolCallItem component
+ */
+interface ToolCallItemProps {
+  toolCall: ToolCall;
+  index: number;
+}
+
+/**
+ * Individual tool call display with expandable details
+ */
+function ToolCallItem({ toolCall, index }: ToolCallItemProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const hasDetails = toolCall.input || toolCall.output;
+
+  return (
+    <div
+      key={index.toString()}
+      className={cn(
+        "text-xs rounded-md overflow-hidden",
+        toolCall.status === "running"
+          ? "bg-amber-500/20 text-amber-300"
+          : "bg-emerald-500/20 text-emerald-300"
+      )}
+    >
+      <button
+        type="button"
+        onClick={() => hasDetails && setIsExpanded(!isExpanded)}
+        className={cn(
+          "flex items-center gap-2 px-2 py-1 w-full text-left",
+          hasDetails && "cursor-pointer hover:bg-white/5"
+        )}
+        disabled={!hasDetails}
+      >
+        {hasDetails && (
+          isExpanded 
+            ? <ChevronDownIcon className="h-3 w-3" /> 
+            : <ChevronRightIcon className="h-3 w-3" />
+        )}
+        <WrenchIcon className="h-3 w-3" />
+        <span className="font-mono">{toolCall.toolName}</span>
+        {toolCall.durationMs !== undefined && (
+          <span className="text-[10px] opacity-70">{toolCall.durationMs}ms</span>
+        )}
+        {toolCall.status === "running" ? (
+          <Loader2Icon className="h-3 w-3 animate-spin ml-auto" />
+        ) : (
+          <CheckCircleIcon className="h-3 w-3 ml-auto" />
+        )}
+      </button>
+      {isExpanded && hasDetails && (
+        <div className="px-2 pb-2 space-y-2 border-t border-white/10">
+          {toolCall.input && (
+            <div>
+              <div className="text-[10px] uppercase tracking-wide opacity-50 mt-2 mb-1">Input</div>
+              <pre className="text-[11px] bg-black/20 p-2 rounded overflow-x-auto">
+                {JSON.stringify(toolCall.input, null, 2)}
+              </pre>
+            </div>
+          )}
+          {toolCall.output && (
+            <div>
+              <div className="text-[10px] uppercase tracking-wide opacity-50 mt-2 mb-1">Output</div>
+              <pre className="text-[11px] bg-black/20 p-2 rounded overflow-x-auto">
+                {JSON.stringify(toolCall.output, null, 2)}
+              </pre>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 /**
  * Props interface for the ChatMessage component
@@ -48,6 +123,13 @@ export function ChatMessage({ message }: ChatMessageProps) {
         </AvatarFallback>
       </Avatar>
       <Card className={cn("p-4 max-w-[80%] ", isUser ? "bg-muted" : "bg-slate-700")}>
+        {message.toolCalls && message.toolCalls.length > 0 && (
+          <div className="mb-2 space-y-1">
+            {message.toolCalls.map((toolCall, index) => (
+              <ToolCallItem key={index.toString()} toolCall={toolCall} index={index} />
+            ))}
+          </div>
+        )}
         {message.content ? (
           <ReactMarkdown className="text-sm whitespace-pre-wrap prose dark:prose-invert prose-sm">
             {message.content}

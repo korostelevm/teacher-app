@@ -12,6 +12,17 @@ export type MessageAuthor = {
 };
 
 /**
+ * Represents a tool call made by the AI assistant
+ */
+export type ToolCall = {
+  toolName: string;
+  status: "running" | "complete";
+  input?: Record<string, unknown>;
+  output?: Record<string, unknown>;
+  durationMs?: number;
+};
+
+/**
  * Represents a chat message in the application
  * @typedef {Object} Message
  * @property {string} id - Unique identifier for the message
@@ -20,6 +31,7 @@ export type MessageAuthor = {
  * @property {File[]} [files] - Optional array of files attached to the message
  * @property {string} [debug] - Optional debug information associated with the message
  * @property {MessageAuthor} [author] - Optional user information of the message author
+ * @property {ToolCall[]} [toolCalls] - Optional array of tool calls made during this message
  */
 export type Message = {
   id: string;
@@ -28,4 +40,5 @@ export type Message = {
   files?: File[];
   debug?: string;
   author?: MessageAuthor;
+  toolCalls?: ToolCall[];
 };

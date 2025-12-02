@@ -106,6 +106,7 @@ export function ChatContainer({
             content: msg.content,
             role: msg.role,
             author: msg.author,
+            toolCalls: msg.toolCalls,
           }));
           setMessages(displayMessages);
         } catch (error) {
@@ -135,14 +136,16 @@ export function ChatContainer({
         );
       }
     },
-    onComplete: (finalResponse) => {
+    onComplete: async (finalResponse) => {
       setIsLoading(false);
       
+      const messageId = currentAssistantMessageIdRef.current;
+      
       // Update final message with response
-      if (currentAssistantMessageIdRef.current) {
+      if (messageId) {
         setMessages((prev) =>
           prev.map((msg) => {
-            if (msg.id === currentAssistantMessageIdRef.current) {
+            if (msg.id === messageId) {
               return {
                 ...msg,
                 content: finalResponse || msg.content || "No response generated.",
@@ -151,6 +154,25 @@ export function ChatContainer({
             return msg;
           })
         );
+        
+        // Fetch full tool call details from API
+        try {
+          const response = await fetch(`/api/tool-calls/${messageId}`);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.toolCalls?.length > 0) {
+              setMessages((prev) =>
+                prev.map((msg) =>
+                  msg.id === messageId
+                    ? { ...msg, toolCalls: data.toolCalls }
+                    : msg
+                )
+              );
+            }
+          }
+        } catch (error) {
+          console.error("Failed to fetch tool calls:", error);
+        }
       }
       
       currentAssistantMessageIdRef.current = null;
@@ -174,6 +196,44 @@ export function ChatContainer({
       
       onError?.(error);
       currentAssistantMessageIdRef.current = null;
+    },
+    onToolStart: async (toolName) => {
+      const messageId = currentAssistantMessageIdRef.current;
+      if (messageId) {
+        // Fetch tool calls from DB (includes the new one with input)
+        try {
+          const response = await fetch(`/api/tool-calls/${messageId}`);
+          if (response.ok) {
+            const data = await response.json();
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === messageId ? { ...msg, toolCalls: data.toolCalls } : msg
+              )
+            );
+          }
+        } catch (error) {
+          console.error("Failed to fetch tool calls:", error);
+        }
+      }
+    },
+    onToolComplete: async (toolName) => {
+      const messageId = currentAssistantMessageIdRef.current;
+      if (messageId) {
+        // Fetch updated tool calls from DB (includes output)
+        try {
+          const response = await fetch(`/api/tool-calls/${messageId}`);
+          if (response.ok) {
+            const data = await response.json();
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === messageId ? { ...msg, toolCalls: data.toolCalls } : msg
+              )
+            );
+          }
+        } catch (error) {
+          console.error("Failed to fetch tool calls:", error);
+        }
+      }
     },
   });
 
@@ -244,6 +304,7 @@ export function ChatContainer({
       id: assistantMessageId,
       content: "", // Empty content - UI will show "Thinking..." when empty
       role: "assistant",
+      toolCalls: [], // Initialize for streaming tool calls
     };
     setMessages((prev) => [...prev, assistantMessage]);
 

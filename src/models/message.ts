@@ -5,6 +5,7 @@ export interface IMessage extends Document {
   authorId: Types.ObjectId;
   role: "user" | "assistant";
   content: string;
+  messageId?: string; // Links to tool calls (the streaming message ID)
   createdAt: Date;
   updatedAt: Date;
 }
@@ -25,6 +26,11 @@ const messageSchema = new Schema<IMessage>(
     },
     role: { type: String, enum: ["user", "assistant"], required: true },
     content: { type: String, required: true },
+    messageId: {
+      type: String,
+      index: true,
+      sparse: true,
+    },
   },
   { timestamps: true }
 );
@@ -37,17 +43,20 @@ export async function createMessage({
   role,
   content,
   authorId,
+  messageId,
 }: {
   threadId: Types.ObjectId | string;
   role: "user" | "assistant";
   content: string;
   authorId: Types.ObjectId | string;
+  messageId?: string;
 }): Promise<IMessage> {
   return Message.create({
     threadId,
     role,
     content,
     authorId,
+    messageId,
   });
 }
 

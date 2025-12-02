@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getThreadMessages } from "@/models/message";
+import { getThreadToolCalls } from "@/models/tool-call";
 
 /**
  * GET /api/threads/[threadId]/messages - Get all messages in a thread
@@ -15,19 +16,45 @@ export async function GET(
     }
 
     const { threadId } = await params;
-    const messages = await getThreadMessages(threadId);
     
-    // Transform messages to include author information
-    const transformedMessages = messages.map((msg: any) => ({
-      id: msg._id.toString(),
-      content: msg.content,
-      role: msg.role,
-      author: msg.authorId ? {
-        displayName: msg.authorId.displayName,
-        email: msg.authorId.email,
-        photo: msg.authorId.photo,
-      } : undefined,
-    }));
+    // Fetch messages and tool calls in parallel
+    const [messages, toolCalls] = await Promise.all([
+      getThreadMessages(threadId),
+      getThreadToolCalls(threadId),
+    ]);
+    
+    // Group tool calls by messageId
+    const toolCallsByMessageId = new Map<string, typeof toolCalls>();
+    for (const tc of toolCalls) {
+      const existing = toolCallsByMessageId.get(tc.messageId) || [];
+      existing.push(tc);
+      toolCallsByMessageId.set(tc.messageId, existing);
+    }
+    
+    // Transform messages to include author information and tool calls
+    const transformedMessages = messages.map((msg: any) => {
+      const msgToolCalls = msg.messageId 
+        ? toolCallsByMessageId.get(msg.messageId) 
+        : undefined;
+      
+      return {
+        id: msg._id.toString(),
+        content: msg.content,
+        role: msg.role,
+        author: msg.authorId ? {
+          displayName: msg.authorId.displayName,
+          email: msg.authorId.email,
+          photo: msg.authorId.photo,
+        } : undefined,
+        toolCalls: msgToolCalls?.map((tc: any) => ({
+          toolName: tc.toolName,
+          status: tc.status,
+          input: tc.input,
+          output: tc.output,
+          durationMs: tc.durationMs,
+        })),
+      };
+    });
     
     return NextResponse.json({ messages: transformedMessages });
   } catch (error) {

@@ -12,7 +12,8 @@
 // Import tool files to trigger registration (add new tools here)
 import "./random-number";
 
-import { createToolCall } from "@/models/tool-call";
+import { publishToolStart, publishToolComplete } from "@/lib/ably";
+import { startToolCall, completeToolCall } from "@/models/tool-call";
 import { getToolRegistry, getRegisteredToolNames, type BaseTool } from "./registry";
 import type { ToolContext } from "./types";
 
@@ -25,20 +26,41 @@ function wrapTool(toolName: string, tool: BaseTool, ctx: ToolContext) {
     inputSchema: tool.inputSchema,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     execute: async (params: any) => {
-      const startTime = performance.now();
-      const result = await tool.execute(params, { ctx });
-      const durationMs = Math.round(performance.now() - startTime);
+      const input = params as Record<string, unknown>;
+      console.log(`[Tool] ${toolName} starting with input:`, input);
 
-      // Log tool call to database
-      await createToolCall({
+      // Save tool call to DB with "running" status
+      const savedToolCall = await startToolCall({
         threadId: ctx.threadId,
         messageId: ctx.messageId,
         toolName,
-        input: params as Record<string, unknown>,
-        output: result as Record<string, unknown>,
+        input,
         userId: ctx.user._id,
+      });
+      console.log(`[Tool] ${toolName} saved to DB:`, savedToolCall._id);
+
+      // Publish tool call start (frontend will fetch from DB)
+      console.log(`[Tool] ${toolName} publishing start event`);
+      await publishToolStart(ctx.messageId, toolName);
+
+      const startTime = performance.now();
+      const result = await tool.execute(params, { ctx });
+      const durationMs = Math.round(performance.now() - startTime);
+      const output = result as Record<string, unknown>;
+      console.log(`[Tool] ${toolName} completed in ${durationMs}ms with output:`, output);
+
+      // Update tool call in DB with output
+      await completeToolCall({
+        messageId: ctx.messageId,
+        toolName,
+        output,
         durationMs,
       });
+      console.log(`[Tool] ${toolName} DB updated`);
+
+      // Publish tool call complete (frontend will fetch updated record)
+      console.log(`[Tool] ${toolName} publishing complete event`);
+      await publishToolComplete(ctx.messageId, toolName);
 
       return result;
     },

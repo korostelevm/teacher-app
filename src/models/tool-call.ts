@@ -4,10 +4,11 @@ export interface IToolCall extends Document {
   threadId: Types.ObjectId;
   messageId: string; // The responseMessageId from the agent
   toolName: string;
+  status: "running" | "complete";
   input: Record<string, unknown>;
-  output: Record<string, unknown>;
+  output?: Record<string, unknown>;
   userId: Types.ObjectId;
-  durationMs: number;
+  durationMs?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -30,13 +31,18 @@ const toolCallSchema = new Schema<IToolCall>(
       required: true,
       index: true,
     },
+    status: {
+      type: String,
+      enum: ["running", "complete"],
+      required: true,
+      default: "running",
+    },
     input: {
       type: Schema.Types.Mixed,
       required: true,
     },
     output: {
       type: Schema.Types.Mixed,
-      required: true,
     },
     userId: {
       type: Schema.Types.ObjectId,
@@ -46,7 +52,6 @@ const toolCallSchema = new Schema<IToolCall>(
     },
     durationMs: {
       type: Number,
-      required: true,
     },
   },
   { timestamps: true }
@@ -55,32 +60,45 @@ const toolCallSchema = new Schema<IToolCall>(
 export const ToolCall =
   mongoose.models.ToolCall || mongoose.model<IToolCall>("ToolCall", toolCallSchema);
 
-export async function createToolCall({
+export async function startToolCall({
   threadId,
   messageId,
   toolName,
   input,
-  output,
   userId,
-  durationMs,
 }: {
   threadId: Types.ObjectId | string;
   messageId: string;
   toolName: string;
   input: Record<string, unknown>;
-  output: Record<string, unknown>;
   userId: Types.ObjectId | string;
-  durationMs: number;
 }): Promise<IToolCall> {
   return ToolCall.create({
     threadId,
     messageId,
     toolName,
+    status: "running",
     input,
-    output,
     userId,
-    durationMs,
   });
+}
+
+export async function completeToolCall({
+  messageId,
+  toolName,
+  output,
+  durationMs,
+}: {
+  messageId: string;
+  toolName: string;
+  output: Record<string, unknown>;
+  durationMs: number;
+}): Promise<IToolCall | null> {
+  return ToolCall.findOneAndUpdate(
+    { messageId, toolName, status: "running" },
+    { status: "complete", output, durationMs },
+    { new: true }
+  );
 }
 
 export async function getThreadToolCalls(

@@ -9,6 +9,8 @@ interface UseChatStreamOptions {
   onTextChunk: (chunk: string) => void;
   onComplete: (finalResponse: string) => void;
   onError: (error: Error) => void;
+  onToolStart?: (toolName: string) => void;
+  onToolComplete?: (toolName: string) => void;
 }
 
 export interface ChatResponse {
@@ -26,6 +28,8 @@ export function useChatStream({
   onTextChunk,
   onComplete,
   onError,
+  onToolStart,
+  onToolComplete,
 }: UseChatStreamOptions) {
   const ably = useAbly();
   const channelRef = useRef<ReturnType<Ably.Realtime["channels"]["get"]> | null>(null);
@@ -67,10 +71,21 @@ export function useChatStream({
       subscriptionsRef.current.forEach((unsub) => unsub());
       subscriptionsRef.current = [];
 
-      // Set up event handlers for streaming
-      const unsubscribeText = () => {
-        channel.unsubscribe("stream:text");
+      // Define unsubscribe functions first
+      const unsubscribeText = () => channel.unsubscribe("stream:text");
+      const unsubscribeComplete = () => channel.unsubscribe("stream:complete");
+      const unsubscribeError = () => channel.unsubscribe("stream:error");
+      const unsubscribeToolStart = () => channel.unsubscribe("tool:start");
+      const unsubscribeToolComplete = () => channel.unsubscribe("tool:complete");
+      const unsubscribeAll = () => {
+        unsubscribeText();
+        unsubscribeComplete();
+        unsubscribeError();
+        unsubscribeToolStart();
+        unsubscribeToolComplete();
       };
+
+      // Set up event handlers for streaming
       channel.subscribe("stream:text", (message) => {
         const data = message.data as { text: string; messageId: string };
         if (data.messageId === requestMessageId) {
@@ -78,9 +93,6 @@ export function useChatStream({
         }
       });
 
-      const unsubscribeComplete = () => {
-        channel.unsubscribe("stream:complete");
-      };
       channel.subscribe("stream:complete", (message) => {
         const data = message.data as {
           messageId: string;
@@ -88,16 +100,10 @@ export function useChatStream({
         };
         if (data.messageId === requestMessageId) {
           onComplete(data.finalResponse);
-          // Unsubscribe all handlers after completion
-          unsubscribeText();
-          unsubscribeComplete();
-          unsubscribeError();
+          unsubscribeAll();
         }
       });
 
-      const unsubscribeError = () => {
-        channel.unsubscribe("stream:error");
-      };
       channel.subscribe("stream:error", (message) => {
         const data = message.data as {
           messageId: string;
@@ -106,10 +112,24 @@ export function useChatStream({
         if (data.messageId === requestMessageId) {
           console.error("[Chat] Stream error:", data.error);
           onError(new Error(data.error));
-          // Unsubscribe all handlers after error
-          unsubscribeText();
-          unsubscribeComplete();
-          unsubscribeError();
+          unsubscribeAll();
+        }
+      });
+
+      // Tool event handlers
+      channel.subscribe("tool:start", (message) => {
+        const data = message.data as { messageId: string; toolName: string };
+        console.log("[useChatStream] Received tool:start", data);
+        if (data.messageId === requestMessageId && onToolStart) {
+          onToolStart(data.toolName);
+        }
+      });
+
+      channel.subscribe("tool:complete", (message) => {
+        const data = message.data as { messageId: string; toolName: string };
+        console.log("[useChatStream] Received tool:complete", data);
+        if (data.messageId === requestMessageId && onToolComplete) {
+          onToolComplete(data.toolName);
         }
       });
 
@@ -117,6 +137,8 @@ export function useChatStream({
         unsubscribeText,
         unsubscribeComplete,
         unsubscribeError,
+        unsubscribeToolStart,
+        unsubscribeToolComplete,
       ];
 
       // Send request to chat endpoint
@@ -141,6 +163,8 @@ export function useChatStream({
       onTextChunk,
       onComplete,
       onError,
+      onToolStart,
+      onToolComplete,
     ]
   );
 

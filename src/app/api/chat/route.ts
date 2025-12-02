@@ -71,6 +71,7 @@ export async function POST(request: NextRequest) {
       threadId: currentThreadId,
       responseMessageId: msgId,
       userId,
+      toolNames: ["generateRandomNumber"],
     }).catch((error) => {
       console.error("[Chat API] Agent error:", error);
     });
