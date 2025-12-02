@@ -2,7 +2,9 @@ import { streamText } from "ai";
 import { openaiClient } from "@/lib/openai";
 import Ably from "ably";
 import { Message, createMessage, IMessage } from "@/models/message";
+import { User, IUser } from "@/models/user";
 import { Types } from "mongoose";
+import { createTools } from "@/tools";
 
 /**
  * Agent class for generating AI responses
@@ -16,19 +18,29 @@ export class Agent {
    * @param params - Configuration object
    * @param params.threadId - ID of the thread to respond to
    * @param params.responseMessageId - Unique identifier for the response message (used for client-side tracking)
+   * @param params.userId - ID of the user making the request
+   * @param params.toolNames - Optional list of tool names to enable. If not provided, all tools are enabled.
    * @returns The full response text
    */
   static async createResponse(params: {
     threadId: string;
     responseMessageId: string;
+    userId: string;
+    toolNames?: string[];
   }): Promise<string> {
-    const { threadId, responseMessageId } = params;
+    const { threadId, responseMessageId, userId, toolNames } = params;
 
     try {
-      // Get all messages in the thread for context
-      const threadMessages = await Message.find({ threadId }).sort({
-        createdAt: 1,
-      });
+      // Fetch user, messages, and Ably channel in parallel
+      const [user, threadMessages, channel] = await Promise.all([
+        User.findById(userId),
+        Message.find({ threadId }).sort({ createdAt: 1 }),
+        this.getAblyChannel(responseMessageId),
+      ]);
+
+      if (!user) {
+        throw new Error(`User not found: ${userId}`);
+      }
 
       if (threadMessages.length === 0) {
         throw new Error(`No messages found in thread: ${threadId}`);
@@ -37,15 +49,23 @@ export class Agent {
       // Build prompt from thread history
       const prompt = this.buildPrompt(threadMessages);
 
+      // Create tools with user context
+      const tools = createTools(
+        {
+          user: user as IUser,
+          threadId,
+          messageId: responseMessageId,
+        },
+        toolNames
+      );
+
       // Stream response from OpenAI
       const modelName = process.env.OPENAI_MODEL || "gpt-4o-mini";
       const result = streamText({
         model: openaiClient()(modelName),
         prompt,
+        tools,
       });
-
-      // Get Ably channel for streaming
-      const channel = await this.getAblyChannel(responseMessageId);
 
       // Stream response chunks to Ably and collect full text
       let fullText = "";

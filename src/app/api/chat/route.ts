@@ -70,6 +70,7 @@ export async function POST(request: NextRequest) {
     Agent.createResponse({
       threadId: currentThreadId,
       responseMessageId: msgId,
+      userId,
     }).catch((error) => {
       console.error("[Chat API] Agent error:", error);
     });
