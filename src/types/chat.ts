@@ -23,6 +23,14 @@ export type ToolCall = {
 };
 
 /**
+ * Represents a memory that was referenced in a response
+ */
+export type MemoryUsed = {
+  id: string;
+  content: string;
+};
+
+/**
  * Represents a chat message in the application
  * @typedef {Object} Message
  * @property {string} id - Unique identifier for the message
@@ -41,4 +49,5 @@ export type Message = {
   debug?: string;
   author?: MessageAuthor;
   toolCalls?: ToolCall[];
+  memoriesUsed?: MemoryUsed[];
 };

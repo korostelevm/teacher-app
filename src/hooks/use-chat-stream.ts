@@ -4,10 +4,15 @@ import { useCallback, useRef } from "react";
 import Ably from "ably";
 import { useAbly } from "@/hooks/use-ably";
 
+interface MemoryUsed {
+  id: string;
+  content: string;
+}
+
 interface UseChatStreamOptions {
   chatEndpoint: string;
   onTextChunk: (chunk: string) => void;
-  onComplete: (finalResponse: string) => void;
+  onComplete: (finalResponse: string, memoriesUsed?: MemoryUsed[]) => void;
   onError: (error: Error) => void;
   onToolStart?: (toolName: string) => void;
   onToolComplete?: (toolName: string) => void;
@@ -97,9 +102,10 @@ export function useChatStream({
         const data = message.data as {
           messageId: string;
           finalResponse: string;
+          memoriesUsed?: MemoryUsed[];
         };
         if (data.messageId === requestMessageId) {
-          onComplete(data.finalResponse);
+          onComplete(data.finalResponse, data.memoriesUsed);
           unsubscribeAll();
         }
       });

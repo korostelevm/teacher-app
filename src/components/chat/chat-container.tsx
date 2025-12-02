@@ -107,6 +107,7 @@ export function ChatContainer({
             role: msg.role,
             author: msg.author,
             toolCalls: msg.toolCalls,
+            memoriesUsed: msg.memoriesUsed,
           }));
           setMessages(displayMessages);
         } catch (error) {
@@ -136,12 +137,12 @@ export function ChatContainer({
         );
       }
     },
-    onComplete: async (finalResponse) => {
+    onComplete: async (finalResponse, memoriesUsed) => {
       setIsLoading(false);
       
       const messageId = currentAssistantMessageIdRef.current;
       
-      // Update final message with response
+      // Update final message with response and memories used
       if (messageId) {
         setMessages((prev) =>
           prev.map((msg) => {
@@ -149,6 +150,7 @@ export function ChatContainer({
               return {
                 ...msg,
                 content: finalResponse || msg.content || "No response generated.",
+                memoriesUsed: memoriesUsed || [],
               };
             }
             return msg;

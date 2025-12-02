@@ -1,4 +1,19 @@
 import { openai } from "@ai-sdk/openai";
+import OpenAI from "openai";
+
+// Raw OpenAI client for native structured output
+let rawOpenAIClient: OpenAI | null = null;
+
+export function getRawOpenAI(): OpenAI {
+  if (!rawOpenAIClient) {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey || apiKey === "sk-placeholder-your-openai-api-key-here") {
+      throw new Error("OPENAI_API_KEY is not set.");
+    }
+    rawOpenAIClient = new OpenAI({ apiKey });
+  }
+  return rawOpenAIClient;
+}
 
 /**
  * OpenAI client configured with API key from environment variables

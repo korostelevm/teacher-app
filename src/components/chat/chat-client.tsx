@@ -3,6 +3,7 @@
 import { ChatContainer } from "@/components/chat/chat-container";
 import { ProfileMenu } from "@/components/profile-menu";
 import { ThreadsList } from "@/components/threads-list";
+import { MemoriesList } from "@/components/memories-list";
 import { Message } from "@/types/chat";
 import { useTheme } from "next-themes";
 import { useUser } from "@/hooks/use-user";
@@ -35,17 +36,20 @@ function ChatClient(): React.JSX.Element {
         <h1 className="font-semibold">Magic School</h1>
         <ProfileMenu user={user} />
       </div>
-      <div className="flex-1 overflow-hidden flex gap-4">
+      <div className="flex-1 overflow-hidden flex">
         <div className="w-64 border-r overflow-auto">
           <ThreadsList onSelectThread={setSelectedThreadId} selectedThreadId={selectedThreadId} />
-      </div>
-      <div className="flex-1 overflow-hidden">
-        <ChatContainer
+        </div>
+        <div className="flex-1 overflow-hidden">
+          <ChatContainer
             threadId={selectedThreadId}
-          onMessageSent={handleMessageSent}
-          onError={handleError}
-          user={user}
-        />
+            onMessageSent={handleMessageSent}
+            onError={handleError}
+            user={user}
+          />
+        </div>
+        <div className="w-72 border-l overflow-auto">
+          <MemoriesList />
         </div>
       </div>
     </div>

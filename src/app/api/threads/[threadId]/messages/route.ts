@@ -31,7 +31,7 @@ export async function GET(
       toolCallsByMessageId.set(tc.messageId, existing);
     }
     
-    // Transform messages to include author information and tool calls
+    // Transform messages to include author information, tool calls, and memories
     const transformedMessages = messages.map((msg: any) => {
       const msgToolCalls = msg.messageId 
         ? toolCallsByMessageId.get(msg.messageId) 
@@ -52,6 +52,10 @@ export async function GET(
           input: tc.input,
           output: tc.output,
           durationMs: tc.durationMs,
+        })),
+        memoriesUsed: msg.referencedMemories?.map((m: any) => ({
+          id: m._id.toString(),
+          content: m.content,
         })),
       };
     });

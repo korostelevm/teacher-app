@@ -6,6 +6,7 @@ export interface IMessage extends Document {
   role: "user" | "assistant";
   content: string;
   messageId?: string; // Links to tool calls (the streaming message ID)
+  referencedMemories?: Types.ObjectId[]; // Memory IDs referenced in this response
   createdAt: Date;
   updatedAt: Date;
 }
@@ -31,6 +32,10 @@ const messageSchema = new Schema<IMessage>(
       index: true,
       sparse: true,
     },
+    referencedMemories: [{
+      type: Schema.Types.ObjectId,
+      ref: "Memory",
+    }],
   },
   { timestamps: true }
 );
@@ -44,12 +49,14 @@ export async function createMessage({
   content,
   authorId,
   messageId,
+  referencedMemories,
 }: {
   threadId: Types.ObjectId | string;
   role: "user" | "assistant";
   content: string;
   authorId: Types.ObjectId | string;
   messageId?: string;
+  referencedMemories?: string[];
 }): Promise<IMessage> {
   return Message.create({
     threadId,
@@ -57,6 +64,7 @@ export async function createMessage({
     content,
     authorId,
     messageId,
+    referencedMemories,
   });
 }
 
@@ -65,6 +73,7 @@ export async function getThreadMessages(
 ): Promise<IMessage[]> {
   return Message.find({ threadId })
     .populate("authorId", "displayName email photo")
+    .populate("referencedMemories", "content")
     .sort({ createdAt: 1 });
 }
 

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Agent } from "@/core/agent";
+import { chatAgent } from "@/core/agent";
 import { ThreadManager } from "@/core/thread-manager";
 import { createMessage } from "@/models/message";
+import { queueMemoryExtraction } from "@/workers/thread-update-worker";
 
 /**
  * Chat API route handler for processing messages
@@ -56,6 +57,9 @@ export async function POST(request: NextRequest) {
         content,
         authorId: userId,
       });
+      
+      // Queue memory extraction (runs in background)
+      queueMemoryExtraction(currentThreadId, userId);
     } catch (error) {
       console.error("[Chat API] Failed to save user message:", error);
       return NextResponse.json(
@@ -67,11 +71,10 @@ export async function POST(request: NextRequest) {
     // Start streaming in the background - don't await it
     // This allows us to return the HTTP response immediately
     // Message is guaranteed persisted at this point (await above)
-    Agent.createResponse({
+    chatAgent.createResponse({
       threadId: currentThreadId,
       responseMessageId: msgId,
       userId,
-      toolNames: ["generateRandomNumber"],
     }).catch((error) => {
       console.error("[Chat API] Agent error:", error);
     });

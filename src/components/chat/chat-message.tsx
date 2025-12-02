@@ -3,10 +3,10 @@
 import { useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
-import { BotIcon, FileIcon, ImageIcon, UserIcon, WrenchIcon, Loader2Icon, CheckCircleIcon, ChevronDownIcon, ChevronRightIcon } from "lucide-react";
+import { BotIcon, FileIcon, ImageIcon, UserIcon, WrenchIcon, Loader2Icon, CheckCircleIcon, ChevronDownIcon, ChevronRightIcon, BrainIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
-import type { Message, ToolCall } from "@/types/chat";
+import type { Message, ToolCall, MemoryUsed } from "@/types/chat";
 
 /**
  * Props interface for the ToolCallItem component
@@ -83,6 +83,42 @@ function ToolCallItem({ toolCall, index }: ToolCallItemProps) {
 }
 
 /**
+ * Props interface for the MemoryItem component
+ */
+interface MemoryItemProps {
+  memory: MemoryUsed;
+}
+
+/**
+ * Individual memory display
+ */
+function MemoryItem({ memory }: MemoryItemProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  return (
+    <div className="text-xs rounded-md overflow-hidden bg-purple-500/20 text-purple-300">
+      <button
+        type="button"
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="flex items-center gap-2 px-2 py-1 w-full text-left cursor-pointer hover:bg-white/5"
+      >
+        {isExpanded 
+          ? <ChevronDownIcon className="h-3 w-3" /> 
+          : <ChevronRightIcon className="h-3 w-3" />
+        }
+        <BrainIcon className="h-3 w-3" />
+        <span className="truncate flex-1">Memory used</span>
+      </button>
+      {isExpanded && (
+        <div className="px-2 pb-2 border-t border-white/10">
+          <div className="text-[11px] mt-2 opacity-90">{memory.content}</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
  * Props interface for the ChatMessage component
  * @interface ChatMessageProps
  */
@@ -123,6 +159,13 @@ export function ChatMessage({ message }: ChatMessageProps) {
         </AvatarFallback>
       </Avatar>
       <Card className={cn("p-4 max-w-[80%] ", isUser ? "bg-muted" : "bg-slate-700")}>
+        {message.memoriesUsed && message.memoriesUsed.length > 0 && (
+          <div className="mb-2 space-y-1">
+            {message.memoriesUsed.map((memory) => (
+              <MemoryItem key={memory.id} memory={memory} />
+            ))}
+          </div>
+        )}
         {message.toolCalls && message.toolCalls.length > 0 && (
           <div className="mb-2 space-y-1">
             {message.toolCalls.map((toolCall, index) => (
