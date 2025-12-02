@@ -6,6 +6,22 @@
 
 > **Note:** You'll need a Google account to sign in and use the application.
 
+### Features (Option 2: Memory & Context Retention)
+
+- **Intelligent Memory System** — Extracts, consolidates, and expires memories from conversations
+- **Cross-Session Context** — Memories persist and influence future responses
+- **Lesson Plan Tools** — Create, edit, and manage lesson plans via chat
+- **Tool Framework** — Registry pattern with Zod validation, user context injection, DB logging, and real-time status via Ably
+- **Real-Time Streaming** — Ably-powered response streaming
+- **Memory Visualization** — See which memories were used in each response
+- **Auto Thread Naming** — Conversations are automatically titled based on content
+
+### Why Raw OpenAI API for the Agent Loop?
+
+The chat agent uses OpenAI's native API directly for the completion loop. The pattern requires: tool calls → tool execution → structured output with `response_format: json_schema` → real-time extraction of the `response` field from streaming JSON (for immediate display) while capturing `memoriesReferenced` from the final parse.
+
+The Vercel AI SDK's `streamText` and `streamObject` don't cleanly support this combined flow — you'd need manual coordination between abstractions anyway. Direct API control made the implementation simpler.
+
 ---
 
 ## Overview
