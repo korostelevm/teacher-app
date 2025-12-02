@@ -7,6 +7,7 @@ import { useAbly } from "@/hooks/use-ably";
 interface MemoryUsed {
   id: string;
   content: string;
+  deleted?: boolean;
 }
 
 interface UseChatStreamOptions {

@@ -116,8 +116,8 @@ export class Agent {
             response: z.string().describe("Your conversational reply to the user."),
           });
 
-      // Build system prompt with memory context included
-      const systemPrompt = this.buildSystemPromptWithMemories(memories as IMemory[], memoryIds);
+      // Build system prompt with user info and memory context included
+      const systemPrompt = this.buildSystemPromptWithContext(user as IUser, memories as IMemory[], memoryIds);
 
       // Use raw OpenAI client with completion loop (handles tools + structured output)
       const openai = getRawOpenAI();
@@ -344,12 +344,20 @@ export class Agent {
   }
 
   /**
-   * Build system prompt with memory context included
-   * This keeps memories in the system prompt rather than polluting conversation history
+   * Build system prompt with user info and memory context included
+   * This keeps context in the system prompt rather than polluting conversation history
    */
-  private buildSystemPromptWithMemories(memories: IMemory[], memoryIds: string[]): string {
+  private buildSystemPromptWithContext(user: IUser, memories: IMemory[], memoryIds: string[]): string {
     const basePrompt = this.systemPrompt || "";
     
+    // User info section
+    const userSection = `
+## Current User
+You are talking to ${user.displayName} (${user.email}).
+Address them by their first name when appropriate.
+`;
+
+    // Memories section
     let memoriesSection = "";
     if (memories.length > 0) {
       const memoriesText = memories
@@ -365,6 +373,7 @@ When you use information from these memories in your response, include the relev
     }
 
     return `${basePrompt}
+${userSection}
 ${memoriesSection}
 ## Response Format
 Your "response" should be natural and conversational - never mention memory IDs there.
@@ -398,6 +407,31 @@ If you use information from the user's memories, include those memory IDs in "me
 // Chat agent - using gpt-4o for better structured output handling
 export const chatAgent = new Agent({
   systemId: "000000000000000000000001",
-  toolNames: ["generateRandomNumber"],
+  toolNames: [
+    "createLessonPlan",
+    "listLessonPlans",
+    "getLessonPlan",
+    "updateLessonPlan",
+    "deleteLessonPlan",
+    "addLessonActivity",
+    "addLessonAssessment",
+    "addLessonDifferentiation",
+  ],
   model: "gpt-4o",
+  systemPrompt: `You are a helpful AI assistant that specializes in helping teachers create engaging, standards-aligned lesson plans.
+
+Your capabilities:
+- Create comprehensive lesson plans with objectives, activities, assessments, and differentiation strategies
+- Align lessons to educational standards (Common Core, state standards, etc.)
+- Suggest engaging activities and resources appropriate for different grade levels
+- Help modify existing lesson plans based on teacher feedback
+- Remember teacher preferences and teaching context across conversations
+
+Communication style:
+- Be warm, supportive, and encouraging
+- Ask clarifying questions to understand the teacher's needs
+- Provide practical, actionable suggestions
+- Keep responses focused and organized
+
+When a user starts a new conversation (their first message is "[START]"), introduce yourself briefly and ask whether they'd like to work on an existing lesson plan or create a new one. Keep this greeting concise and welcoming.`,
 });

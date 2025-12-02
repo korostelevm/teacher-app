@@ -53,6 +53,11 @@ export interface ChatContainerProps {
    * Optional user object containing current user information
    */
   user?: User | null;
+
+  /**
+   * If true, triggers an initial greeting from the assistant
+   */
+  triggerInitialGreeting?: boolean;
 }
 
 /**
@@ -76,12 +81,14 @@ export function ChatContainer({
   onMessageSent,
   onError,
   user,
+  triggerInitialGreeting = false,
 }: ChatContainerProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [shouldAutoScroll, setShouldAutoScroll] = useState(false);
   const [threadId, setThreadId] = useState<string | null>(initialThreadId || null);
+  const [hasTriggeredGreeting, setHasTriggeredGreeting] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
@@ -238,6 +245,49 @@ export function ChatContainer({
       }
     },
   });
+
+  // Trigger initial greeting when component mounts with triggerInitialGreeting=true
+  useEffect(() => {
+    if (triggerInitialGreeting && !hasTriggeredGreeting && !initialThreadId && messages.length === 0) {
+      setHasTriggeredGreeting(true);
+      
+      // Send a hidden start message to trigger the agent's greeting
+      const startMessage = async () => {
+        const assistantMessageId = crypto.randomUUID();
+        currentAssistantMessageIdRef.current = assistantMessageId;
+        
+        // Create placeholder assistant message for streaming
+        const assistantMessage: Message = {
+          id: assistantMessageId,
+          content: "",
+          role: "assistant",
+          toolCalls: [],
+        };
+        setMessages([assistantMessage]);
+        setIsLoading(true);
+
+        try {
+          const response = await sendMessage("[START]", assistantMessageId, null);
+          if (response?.threadId) {
+            setThreadId(response.threadId);
+          }
+        } catch (error) {
+          console.error("Failed to trigger initial greeting:", error);
+          setIsLoading(false);
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === assistantMessageId
+                ? { ...msg, content: "Hello! I'm here to help you create lesson plans. What would you like to work on today?" }
+                : msg
+            )
+          );
+          currentAssistantMessageIdRef.current = null;
+        }
+      };
+      
+      startMessage();
+    }
+  }, [triggerInitialGreeting, hasTriggeredGreeting, initialThreadId, messages.length, sendMessage]);
 
   const handleSendMessage = async (content: string, files?: File[]) => {
     // Add user message immediately

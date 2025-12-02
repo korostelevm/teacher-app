@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { BotIcon, FileIcon, ImageIcon, UserIcon, WrenchIcon, Loader2Icon, CheckCircleIcon, ChevronDownIcon, ChevronRightIcon, BrainIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
+import remarkBreaks from "remark-breaks";
 import type { Message, ToolCall, MemoryUsed } from "@/types/chat";
 
 /**
@@ -174,7 +175,10 @@ export function ChatMessage({ message }: ChatMessageProps) {
           </div>
         )}
         {message.content ? (
-          <ReactMarkdown className="text-sm whitespace-pre-wrap prose dark:prose-invert prose-sm">
+          <ReactMarkdown 
+            className="text-sm whitespace-pre-wrap prose dark:prose-invert prose-sm"
+            remarkPlugins={[remarkBreaks]}
+          >
             {message.content}
           </ReactMarkdown>
         ) : (

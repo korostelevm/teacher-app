@@ -11,6 +11,7 @@
 
 // Import tool files to trigger registration (add new tools here)
 import "./random-number";
+import "./lesson-plan";
 
 import { publishToolStart, publishToolComplete } from "@/lib/ably";
 import { startToolCall, completeToolCall } from "@/models/tool-call";
@@ -28,6 +29,16 @@ function wrapTool(toolName: string, tool: BaseTool, ctx: ToolContext) {
     execute: async (params: any) => {
       const input = params as Record<string, unknown>;
       console.log(`[Tool] ${toolName} starting with input:`, input);
+
+      // Validate input against Zod schema before execution
+      const validation = tool.inputSchema.safeParse(params);
+      if (!validation.success) {
+        const errors = validation.error.issues.map(
+          (issue) => `${issue.path.join(".")}: ${issue.message}`
+        ).join("; ");
+        console.error(`[Tool] ${toolName} validation failed:`, errors);
+        throw new Error(`Invalid input: ${errors}`);
+      }
 
       // Save tool call to DB with "running" status
       const savedToolCall = await startToolCall({

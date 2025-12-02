@@ -28,6 +28,7 @@ export type ToolCall = {
 export type MemoryUsed = {
   id: string;
   content: string;
+  deleted?: boolean;
 };
 
 /**

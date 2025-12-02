@@ -73,7 +73,7 @@ export async function getThreadMessages(
 ): Promise<IMessage[]> {
   return Message.find({ threadId })
     .populate("authorId", "displayName email photo")
-    .populate("referencedMemories", "content")
+    .populate("referencedMemories", "content deletedAt")
     .sort({ createdAt: 1 });
 }
 

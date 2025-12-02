@@ -19,9 +19,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { content, messageId, threadId } = await request.json();
+    const { content, messageId, threadId, isInit } = await request.json();
 
-    if (!content || typeof content !== "string") {
+    // For init requests, we don't need content - the agent will start the conversation
+    if (!isInit && (!content || typeof content !== "string")) {
       return NextResponse.json(
         { error: "Invalid message content" },
         { status: 400 }
@@ -49,23 +50,25 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Save user message to database
-    try {
-      await createMessage({
-        threadId: currentThreadId,
-        role: "user",
-        content,
-        authorId: userId,
-      });
-      
-      // Queue memory extraction (runs in background)
-      queueMemoryExtraction(currentThreadId, userId);
-    } catch (error) {
-      console.error("[Chat API] Failed to save user message:", error);
-      return NextResponse.json(
-        { error: "Failed to save message" },
-        { status: 500 }
-      );
+    // Save user message to database (skip for init requests - agent starts first)
+    if (!isInit) {
+      try {
+        await createMessage({
+          threadId: currentThreadId,
+          role: "user",
+          content,
+          authorId: userId,
+        });
+        
+        // Queue memory extraction (runs in background)
+        queueMemoryExtraction(currentThreadId, userId);
+      } catch (error) {
+        console.error("[Chat API] Failed to save user message:", error);
+        return NextResponse.json(
+          { error: "Failed to save message" },
+          { status: 500 }
+        );
+      }
     }
     
     // Start streaming in the background - don't await it

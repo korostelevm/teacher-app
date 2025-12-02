@@ -56,6 +56,7 @@ export async function GET(
         memoriesUsed: msg.referencedMemories?.map((m: any) => ({
           id: m._id.toString(),
           content: m.content,
+          deleted: m.deletedAt !== null,
         })),
       };
     });

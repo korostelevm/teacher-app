@@ -38,7 +38,7 @@ export async function publishStreamText(messageId: string, text: string) {
 export async function publishStreamComplete(
   messageId: string, 
   finalResponse: string,
-  memoriesUsed?: { id: string; content: string }[]
+  memoriesUsed?: { id: string; content: string; deleted?: boolean }[]
 ) {
   const channel = getChatChannel(messageId);
   await channel.publish("stream:complete", { messageId, finalResponse, memoriesUsed });
