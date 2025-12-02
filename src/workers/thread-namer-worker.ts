@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { Agent } from "@/core/agent";
 import { Message } from "@/models/message";
 import { Thread } from "@/models/thread";
 
@@ -19,10 +18,16 @@ const ThreadTitleSchema = z.object({
     ),
 });
 
-const threadNamerAgent = new Agent({
-  systemId: "000000000000000000000003",
-  model: "gpt-4o-mini", // Use faster/cheaper model for naming
-  systemPrompt: `You are a thread naming assistant. Given a conversation, generate a short, descriptive title.
+// Lazy-loaded agent to avoid circular dependency with agent.ts
+let threadNamerAgent: InstanceType<typeof import("@/core/agent").Agent> | null = null;
+
+async function getThreadNamerAgent() {
+  if (!threadNamerAgent) {
+    const { Agent } = await import("@/core/agent");
+    threadNamerAgent = new Agent({
+      systemId: "000000000000000000000003",
+      model: "gpt-4o-mini", // Use faster/cheaper model for naming
+      systemPrompt: `You are a thread naming assistant. Given a conversation, generate a short, descriptive title.
 
 Rules:
 - Keep titles under 50 characters
@@ -37,7 +42,10 @@ Examples of good titles:
 - "Algebra Activity Ideas"
 - "Assessment Strategies for Math"
 - "Differentiation for ELL Students"`,
-});
+    });
+  }
+  return threadNamerAgent;
+}
 
 type Job = { threadId: string };
 const queue: Job[] = [];
@@ -90,7 +98,8 @@ async function generateThreadTitle(threadId: string) {
     const prompt = `Generate a title for this conversation:\n\n${conversation}`;
 
     console.log(`[ThreadNamer] Calling LLM...`);
-    const { title } = await threadNamerAgent.generateFromPrompt(
+    const agent = await getThreadNamerAgent();
+    const { title } = await agent.generateFromPrompt(
       prompt,
       ThreadTitleSchema
     );

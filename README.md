@@ -24,6 +24,12 @@ Additionally, the response is **async** — the HTTP request returns immediately
 
 This architecture is intentional: a production system would use state machine orchestration on distributed compute (e.g., Temporal, Step Functions), where in-memory streaming isn't possible. Decoupling the response channel from the HTTP request enables that future scalability.
 
+### Known Limitations & Next Steps
+
+**Context growth** — Currently, all thread messages are sent to the LLM without summarization. A production system needs a **context pruning agent** that summarizes older messages to stay within token limits while preserving key information.
+
+**Lesson plan-specific memory** — The memory system already supports `lessonPlanId` associations, but injection is static. Next step: **dynamic memory injection** that loads relevant memories based on which lesson plan is being discussed, rather than all user memories.
+
 ---
 
 ## Overview
