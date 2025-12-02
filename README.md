@@ -20,7 +20,9 @@
 
 The chat agent uses OpenAI's native API directly for the completion loop. The pattern requires: tool calls → tool execution → structured output with `response_format: json_schema` → real-time extraction of the `response` field from streaming JSON (for immediate display) while capturing `memoriesReferenced` from the final parse.
 
-The Vercel AI SDK's `streamText` and `streamObject` don't cleanly support this combined flow — you'd need manual coordination between abstractions anyway. Direct API control made the implementation simpler.
+Additionally, the response is **async** — the HTTP request returns immediately with a channel ID, and streaming happens via Ably pub/sub in the background. The Vercel AI SDK's streaming abstractions are designed for synchronous HTTP streaming (SSE), not decoupled pub/sub delivery.
+
+This architecture is intentional: a production system would use state machine orchestration on distributed compute (e.g., Temporal, Step Functions), where in-memory streaming isn't possible. Decoupling the response channel from the HTTP request enables that future scalability.
 
 ---
 
