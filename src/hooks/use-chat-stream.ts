@@ -42,7 +42,7 @@ export function useChatStream({
   const subscriptionsRef = useRef<Array<() => void>>([]);
 
   const sendMessage = useCallback(
-    async (content: string, assistantMessageId: string, threadId?: string | null): Promise<ChatResponse> => {
+    async (content: string, assistantMessageId: string, threadId?: string | null, isInit?: boolean): Promise<ChatResponse> => {
       if (!ably) {
         throw new Error("Ably not connected. Please wait a moment and try again.");
       }
@@ -154,7 +154,7 @@ export function useChatStream({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ content, messageId: requestMessageId, threadId }),
+        body: JSON.stringify({ content, messageId: requestMessageId, threadId, isInit }),
       });
 
       if (!response.ok) {

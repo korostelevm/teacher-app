@@ -9,6 +9,8 @@ export interface IMemory extends Document {
   lastAccessedAt: Date | null;
   deletedAt: Date | null;
   consolidatedFromIds: Types.ObjectId[];
+  /** Optional lesson plan this memory is associated with */
+  lessonPlanId: Types.ObjectId | null;
   createdAt: Date;
 }
 
@@ -21,6 +23,7 @@ const memorySchema = new Schema<IMemory>(
     lastAccessedAt: { type: Date, default: null },
     deletedAt: { type: Date, default: null, index: true },
     consolidatedFromIds: [{ type: Schema.Types.ObjectId, ref: "Memory", default: [] }],
+    lessonPlanId: { type: Schema.Types.ObjectId, ref: "LessonPlan", default: null, index: true },
   },
   { timestamps: true }
 );

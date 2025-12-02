@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
-import { BotIcon, FileIcon, ImageIcon, UserIcon, WrenchIcon, Loader2Icon, CheckCircleIcon, ChevronDownIcon, ChevronRightIcon, BrainIcon } from "lucide-react";
+import { BotIcon, FileIcon, ImageIcon, UserIcon, WrenchIcon, Loader2Icon, CheckCircleIcon, XCircleIcon, ChevronDownIcon, ChevronRightIcon, BrainIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
 import remarkBreaks from "remark-breaks";
@@ -23,15 +23,21 @@ interface ToolCallItemProps {
 function ToolCallItem({ toolCall, index }: ToolCallItemProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const hasDetails = toolCall.input || toolCall.output;
+  
+  // Check if the tool call failed (output contains an error field)
+  const hasError = toolCall.output && typeof toolCall.output === "object" && "error" in toolCall.output;
+  const isRunning = toolCall.status === "running";
 
   return (
     <div
       key={index.toString()}
       className={cn(
         "text-xs rounded-md overflow-hidden",
-        toolCall.status === "running"
+        isRunning
           ? "bg-amber-500/20 text-amber-300"
-          : "bg-emerald-500/20 text-emerald-300"
+          : hasError
+            ? "bg-red-500/20 text-red-300"
+            : "bg-emerald-500/20 text-emerald-300"
       )}
     >
       <button
@@ -53,8 +59,10 @@ function ToolCallItem({ toolCall, index }: ToolCallItemProps) {
         {toolCall.durationMs !== undefined && (
           <span className="text-[10px] opacity-70">{toolCall.durationMs}ms</span>
         )}
-        {toolCall.status === "running" ? (
+        {isRunning ? (
           <Loader2Icon className="h-3 w-3 animate-spin ml-auto" />
+        ) : hasError ? (
+          <XCircleIcon className="h-3 w-3 ml-auto" />
         ) : (
           <CheckCircleIcon className="h-3 w-3 ml-auto" />
         )}
@@ -71,8 +79,13 @@ function ToolCallItem({ toolCall, index }: ToolCallItemProps) {
           )}
           {toolCall.output && (
             <div>
-              <div className="text-[10px] uppercase tracking-wide opacity-50 mt-2 mb-1">Output</div>
-              <pre className="text-[11px] bg-black/20 p-2 rounded overflow-x-auto">
+              <div className="text-[10px] uppercase tracking-wide opacity-50 mt-2 mb-1">
+                {hasError ? "Error" : "Output"}
+              </div>
+              <pre className={cn(
+                "text-[11px] p-2 rounded overflow-x-auto",
+                hasError ? "bg-red-900/30" : "bg-black/20"
+              )}>
                 {JSON.stringify(toolCall.output, null, 2)}
               </pre>
             </div>

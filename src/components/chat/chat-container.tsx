@@ -251,8 +251,8 @@ export function ChatContainer({
     if (triggerInitialGreeting && !hasTriggeredGreeting && !initialThreadId && messages.length === 0) {
       setHasTriggeredGreeting(true);
       
-      // Send a hidden start message to trigger the agent's greeting
-      const startMessage = async () => {
+      // Start a new conversation with the agent going first
+      const startConversation = async () => {
         const assistantMessageId = crypto.randomUUID();
         currentAssistantMessageIdRef.current = assistantMessageId;
         
@@ -267,12 +267,13 @@ export function ChatContainer({
         setIsLoading(true);
 
         try {
-          const response = await sendMessage("[START]", assistantMessageId, null);
+          // Use isInit flag - agent will start without a user message
+          const response = await sendMessage("", assistantMessageId, null, true);
           if (response?.threadId) {
             setThreadId(response.threadId);
           }
         } catch (error) {
-          console.error("Failed to trigger initial greeting:", error);
+          console.error("Failed to start conversation:", error);
           setIsLoading(false);
           setMessages((prev) =>
             prev.map((msg) =>
@@ -285,7 +286,7 @@ export function ChatContainer({
         }
       };
       
-      startMessage();
+      startConversation();
     }
   }, [triggerInitialGreeting, hasTriggeredGreeting, initialThreadId, messages.length, sendMessage]);
 

@@ -3,15 +3,26 @@ import { Agent } from "@/core/agent";
 import { Message, type IMessage } from "@/models/message";
 import { Memory, type IMemory, findActiveMemories, softDeleteMemories, expireMemories } from "@/models/memory";
 import { getMessageToolCalls } from "@/models/tool-call";
+import { getUserLessonPlans, type ILessonPlan } from "@/models/lesson-plan";
 
-const MemoryOutputSchema = z.object({
-  memories: z.array(
-    z.object({
-      content: z.string().describe("The memory content"),
-      sourceIds: z.array(z.string()).describe("IDs of existing memories incorporated into this. Empty array for brand new memories."),
-    })
-  ).describe("Complete list of memories about the user - both new and consolidated existing ones."),
-});
+/**
+ * Build the memory output schema with lesson plan ID enum constraint
+ */
+function buildMemoryOutputSchema(lessonPlanIds: string[]) {
+  const lessonPlanIdSchema = lessonPlanIds.length > 0
+    ? z.enum(lessonPlanIds as [string, ...string[]]).nullable().describe("ID of the lesson plan this memory is about, or null if not specific to a lesson plan")
+    : z.string().nullable().describe("ID of the lesson plan this memory is about, or null if not specific to a lesson plan");
+
+  return z.object({
+    memories: z.array(
+      z.object({
+        content: z.string().describe("The memory content"),
+        sourceIds: z.array(z.string()).describe("IDs of existing memories incorporated into this. Empty array for brand new memories."),
+        lessonPlanId: lessonPlanIdSchema,
+      })
+    ).describe("Complete list of memories about the user - both new and consolidated existing ones."),
+  });
+}
 
 const memoryAgent = new Agent({
   systemId: "000000000000000000000002",
@@ -26,11 +37,14 @@ Your task:
 For each memory:
 - If it's from existing memories (possibly merged), include their IDs in sourceIds
 - If it's brand new from the conversation, sourceIds should be empty []
+- If the memory is about a specific lesson plan, include the lessonPlanId
+- If the memory is general (not about a specific lesson plan), set lessonPlanId to null
 
 Examples of good memories:
-- User prefers Python over JavaScript
-- User is working on a math tutoring app
-- User's name is Mike
+- User prefers Python over JavaScript (lessonPlanId: null)
+- User teaches 6th grade math (lessonPlanId: null)
+- User wants more hands-on activities in this lesson (lessonPlanId: "abc123")
+- User requested a longer hook section for the fractions lesson (lessonPlanId: "xyz789")
 
 Consolidation examples:
 - "User likes Python" + "User prefers Python over JS" → single memory: "User prefers Python over JavaScript"
@@ -47,10 +61,11 @@ let processing = false;
 async function extractMemories(threadId: string, userId: string) {
   console.log(`[MemoryAgent] Starting extraction for thread ${threadId}`);
 
-  // Get last 4 messages and existing active memories
-  const [recentMessages, existingMemories] = await Promise.all([
+  // Get last 4 messages, existing active memories, and user's lesson plans
+  const [recentMessages, existingMemories, lessonPlans] = await Promise.all([
     Message.find({ threadId }).sort({ createdAt: -1 }).limit(4),
     findActiveMemories({ userId }).sort({ createdAt: -1 }),
+    getUserLessonPlans(userId),
   ]);
 
   if (recentMessages.length === 0) {
@@ -58,7 +73,7 @@ async function extractMemories(threadId: string, userId: string) {
     return;
   }
 
-  console.log(`[MemoryAgent] Processing ${recentMessages.length} messages, ${existingMemories.length} existing memories`);
+  console.log(`[MemoryAgent] Processing ${recentMessages.length} messages, ${existingMemories.length} existing memories, ${lessonPlans.length} lesson plans`);
 
   // Reverse to chronological order
   const messages = recentMessages.reverse();
@@ -86,14 +101,25 @@ async function extractMemories(threadId: string, userId: string) {
 
   // Build existing memories with IDs for consolidation
   const existingMemoriesText = existingMemories.length > 0
-    ? `\n\nExisting memories (with IDs):\n${existingMemories.map((m) => `[id: ${m._id}] ${m.content}`).join("\n")}`
+    ? `\n\nExisting memories (with IDs and lessonPlanId):\n${existingMemories.map((m) => {
+        const lpId = (m as IMemory).lessonPlanId?.toString() || null;
+        return `[id: ${m._id}, lessonPlanId: ${lpId}] ${m.content}`;
+      }).join("\n")}`
     : "";
 
-  const prompt = `Recent conversation:\n${conversation}${existingMemoriesText}`;
+  // Build lesson plans context
+  const lessonPlanIds = lessonPlans.map((lp) => lp._id.toString());
+  const lessonPlansText = lessonPlans.length > 0
+    ? `\n\nUser's lesson plans (use these IDs for lessonPlanId):\n${lessonPlans.map((lp) => `[id: ${lp._id}] ${lp.title} (Grade ${lp.gradeLevel})`).join("\n")}`
+    : "";
+
+  const prompt = `Recent conversation:\n${conversation}${existingMemoriesText}${lessonPlansText}`;
 
   console.log(`[MemoryAgent] Context:\n${prompt}\n`);
   console.log(`[MemoryAgent] Calling LLM...`);
   
+  // Build schema with lesson plan ID enum
+  const MemoryOutputSchema = buildMemoryOutputSchema(lessonPlanIds);
   const { memories: outputMemories } = await memoryAgent.generateFromPrompt(prompt, MemoryOutputSchema);
 
   console.log(`[MemoryAgent] Output:`, JSON.stringify(outputMemories, null, 2));
@@ -109,20 +135,22 @@ async function extractMemories(threadId: string, userId: string) {
 
   for (const output of outputMemories) {
     const sourceIds = output.sourceIds.filter((id) => existingMap.has(id));
+    const lessonPlanId = output.lessonPlanId || null;
     
     if (sourceIds.length === 0) {
       // Brand new memory
-      await Memory.create({ threadId, userId, content: output.content });
-      console.log(`[MemoryAgent] Created new: ${output.content}`);
+      await Memory.create({ threadId, userId, content: output.content, lessonPlanId });
+      console.log(`[MemoryAgent] Created new: ${output.content} (lessonPlanId: ${lessonPlanId})`);
     } else if (sourceIds.length === 1) {
-      // Single source - update if content changed
+      // Single source - update if content or lessonPlanId changed
       const sourceId = sourceIds[0];
       const existing = existingMap.get(sourceId)!;
       processedIds.add(sourceId);
       
-      if (existing.content !== output.content) {
-        await Memory.findByIdAndUpdate(sourceId, { content: output.content });
-        console.log(`[MemoryAgent] Updated: ${output.content}`);
+      const existingLpId = (existing as IMemory).lessonPlanId?.toString() || null;
+      if (existing.content !== output.content || existingLpId !== lessonPlanId) {
+        await Memory.findByIdAndUpdate(sourceId, { content: output.content, lessonPlanId });
+        console.log(`[MemoryAgent] Updated: ${output.content} (lessonPlanId: ${lessonPlanId})`);
       }
     } else {
       // Multiple sources - consolidate (sum access counts, keep oldest, soft delete rest)
@@ -160,13 +188,14 @@ async function extractMemories(threadId: string, userId: string) {
       // Remove the kept ID from consolidatedFromIds (it's the current memory, not a source)
       allOriginalIds.delete(keepId.toString());
 
-      console.log(`[MemoryAgent] Consolidating ${sourceMemories.length} memories → "${output.content}" (accessCount: ${totalAccessCount}, sources: ${Array.from(allOriginalIds).join(', ')})`);
+      console.log(`[MemoryAgent] Consolidating ${sourceMemories.length} memories → "${output.content}" (accessCount: ${totalAccessCount}, lessonPlanId: ${lessonPlanId}, sources: ${Array.from(allOriginalIds).join(', ')})`);
 
       await Memory.findByIdAndUpdate(keepId, {
         content: output.content,
         accessCount: totalAccessCount,
         lastAccessedAt,
         consolidatedFromIds: Array.from(allOriginalIds),
+        lessonPlanId,
       });
 
       if (deleteIds.length > 0) {

@@ -22,10 +22,10 @@ import {
  * Create a new lesson plan
  */
 registerTool("createLessonPlan", {
-  description: "Create a new lesson plan for the user. Returns the created lesson plan with its ID.",
+  description: "Create a new middle school math lesson plan (grades 6-8 only). If the user requests a lesson for a different grade level, explain that this tool only supports grades 6, 7, and 8. Returns the created lesson plan with its ID.",
   inputSchema: z.object({
     title: z.string().describe("Title of the lesson plan"),
-    gradeLevel: z.enum(["6", "7", "8"]).describe("Grade level (6, 7, or 8)"),
+    gradeLevel: z.enum(["6", "7", "8"]).describe("Grade level as a string. MUST be exactly '6', '7', or '8'. No other values are valid."),
     standards: z.array(z.string()).optional().describe("NC Math Standard codes (e.g., NC.6.NS.1)"),
     objectives: z.array(z.string()).optional().describe("Learning objectives for the lesson"),
     durationMinutes: z.number().optional().describe("Estimated total duration in minutes"),
@@ -77,10 +77,10 @@ registerTool("createLessonPlan", {
  * List user's lesson plans
  */
 registerTool("listLessonPlans", {
-  description: "List all lesson plans for the current user. Can filter by status or grade level.",
+  description: "List all lesson plans for the current user. Can filter by status or grade level (6, 7, or 8 only).",
   inputSchema: z.object({
-    status: z.enum(["draft", "published", "archived"]).optional().describe("Filter by status"),
-    gradeLevel: z.enum(["6", "7", "8"]).optional().describe("Filter by grade level"),
+    status: z.enum(["draft", "published", "archived"]).optional().describe("Filter by status: 'draft', 'published', or 'archived'"),
+    gradeLevel: z.enum(["6", "7", "8"]).optional().describe("Filter by grade level. MUST be exactly '6', '7', or '8' if provided."),
   }),
   execute: async (
     params: {

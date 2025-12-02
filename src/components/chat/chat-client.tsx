@@ -3,12 +3,13 @@
 import { ChatContainer } from "@/components/chat/chat-container";
 import { ProfileMenu } from "@/components/profile-menu";
 import { ThreadsList } from "@/components/threads-list";
+import { LessonPlansList } from "@/components/lesson-plans-list";
 import { MemoriesList } from "@/components/memories-list";
 import { Message } from "@/types/chat";
 import { useTheme } from "next-themes";
 import { useUser } from "@/hooks/use-user";
 import { useAbly } from "@/hooks/use-ably";
-import { Sparkles, BookOpen, Brain, Loader2 } from "lucide-react";
+import { Sparkles, BookOpen, Brain, Loader2, MessageSquare } from "lucide-react";
 
 import React, { useState, useEffect } from "react";
 
@@ -90,10 +91,14 @@ function WelcomeHero({ onStart, isReady }: { onStart: () => void; isReady: boole
  * @component
  * @returns {React.JSX.Element} A chat interface with message history and input controls
  */
+type SidebarView = "threads" | "lessons";
+
 function ChatClient(): React.JSX.Element {
   const { theme } = useTheme();
   const { user } = useUser();
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
+  const [selectedLessonPlanId, setSelectedLessonPlanId] = useState<string | null>(null);
+  const [sidebarView, setSidebarView] = useState<SidebarView>("threads");
   const [showChat, setShowChat] = useState(false);
   const [isAblyConnected, setIsAblyConnected] = useState(false);
   
@@ -133,9 +138,15 @@ function ChatClient(): React.JSX.Element {
 
   const handleSelectThread = (threadId: string | null) => {
     setSelectedThreadId(threadId);
+    setSelectedLessonPlanId(null); // Clear lesson plan selection when selecting a thread
     if (threadId) {
       setShowChat(true);
     }
+  };
+
+  const handleSelectLessonPlan = (lessonPlanId: string) => {
+    setSelectedLessonPlanId(lessonPlanId);
+    // Don't clear thread selection - lesson plans are just for viewing
   };
 
   const [triggerGreeting, setTriggerGreeting] = useState(false);
@@ -158,8 +169,43 @@ function ChatClient(): React.JSX.Element {
         <ProfileMenu user={user} />
       </div>
       <div className="flex-1 overflow-hidden flex">
-        <div className="w-64 border-r overflow-auto">
-          <ThreadsList onSelectThread={handleSelectThread} selectedThreadId={selectedThreadId} />
+        <div className="w-64 border-r flex flex-col">
+          {/* Sidebar Tabs */}
+          <div className="flex border-b">
+            <button
+              type="button"
+              onClick={() => setSidebarView("threads")}
+              className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 text-sm font-medium transition-colors ${
+                sidebarView === "threads"
+                  ? "text-violet-400 border-b-2 border-violet-400 bg-violet-500/5"
+                  : "text-muted-foreground hover:text-foreground hover:bg-accent"
+              }`}
+            >
+              <MessageSquare className="h-4 w-4" />
+              Chats
+            </button>
+            <button
+              type="button"
+              onClick={() => setSidebarView("lessons")}
+              className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 text-sm font-medium transition-colors ${
+                sidebarView === "lessons"
+                  ? "text-violet-400 border-b-2 border-violet-400 bg-violet-500/5"
+                  : "text-muted-foreground hover:text-foreground hover:bg-accent"
+              }`}
+            >
+              <BookOpen className="h-4 w-4" />
+              Lessons
+            </button>
+          </div>
+          
+          {/* Sidebar Content */}
+          <div className="flex-1 overflow-auto">
+            {sidebarView === "threads" ? (
+              <ThreadsList onSelectThread={handleSelectThread} selectedThreadId={selectedThreadId} />
+            ) : (
+              <LessonPlansList onSelectLessonPlan={handleSelectLessonPlan} selectedLessonPlanId={selectedLessonPlanId} />
+            )}
+          </div>
         </div>
         <div className="flex-1 overflow-hidden">
           {shouldShowChat ? (

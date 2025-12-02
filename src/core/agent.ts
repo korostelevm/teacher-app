@@ -84,9 +84,12 @@ export class Agent {
       ]);
 
       if (!user) throw new Error(`User not found: ${userId}`);
-      if (threadMessages.length === 0) throw new Error(`No messages in thread: ${threadId}`);
 
-      const messages = await this.buildMessages(threadMessages);
+      // If no messages, this is an init request - agent starts the conversation
+      const isInit = threadMessages.length === 0;
+      const messages = isInit 
+        ? [{ role: "user" as const, content: "Start a new conversation" }]
+        : await this.buildMessages(threadMessages);
       
       // Log context being sent to LLM
       console.log(`[ChatAgent] Loaded ${memories.length} memories for user`);
@@ -126,7 +129,7 @@ export class Agent {
         ...messages.map((m) => ({ role: m.role as "user" | "assistant", content: m.content as string })),
       ];
 
-      // Convert tools to OpenAI format
+      // Convert tools to OpenAI format (tools already have pre-converted JSON Schema parameters)
       const openaiTools: ChatCompletionTool[] = Object.entries(tools).map(([name, tool]) => ({
         type: "function" as const,
         function: {
@@ -418,12 +421,17 @@ export const chatAgent = new Agent({
     "addLessonDifferentiation",
   ],
   model: "gpt-4o",
-  systemPrompt: `You are a helpful AI assistant that specializes in helping teachers create engaging, standards-aligned lesson plans.
+  systemPrompt: `You are a helpful AI assistant that specializes in helping teachers create engaging, standards-aligned lesson plans for middle school math (grades 6, 7, and 8 only).
+
+IMPORTANT CONSTRAINTS:
+- You can ONLY create lesson plans for grades 6, 7, or 8
+- When calling createLessonPlan, gradeLevel MUST be exactly "6", "7", or "8" (as a string)
+- If a teacher asks for a different grade level, politely explain you only support middle school math (grades 6-8)
 
 Your capabilities:
 - Create comprehensive lesson plans with objectives, activities, assessments, and differentiation strategies
-- Align lessons to educational standards (Common Core, state standards, etc.)
-- Suggest engaging activities and resources appropriate for different grade levels
+- Align lessons to NC Math Standards for grades 6-8
+- Suggest engaging activities and resources appropriate for middle school students
 - Help modify existing lesson plans based on teacher feedback
 - Remember teacher preferences and teaching context across conversations
 
@@ -433,5 +441,5 @@ Communication style:
 - Provide practical, actionable suggestions
 - Keep responses focused and organized
 
-When a user starts a new conversation (their first message is "[START]"), introduce yourself briefly and ask whether they'd like to work on an existing lesson plan or create a new one. Keep this greeting concise and welcoming.`,
+When starting a new conversation (the message is "Start a new conversation"), introduce yourself briefly and ask whether they'd like to work on an existing lesson plan or create a new one. Mention that you specialize in middle school math (grades 6-8). Keep this greeting concise and welcoming.`,
 });

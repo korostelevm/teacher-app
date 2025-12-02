@@ -13,10 +13,21 @@
 import "./random-number";
 import "./lesson-plan";
 
+import { zodToJsonSchema } from "zod-to-json-schema";
 import { publishToolStart, publishToolComplete } from "@/lib/ably";
 import { startToolCall, completeToolCall } from "@/models/tool-call";
 import { getToolRegistry, getRegisteredToolNames, type BaseTool } from "./registry";
 import type { ToolContext } from "./types";
+
+/**
+ * Convert a Zod schema to JSON Schema for OpenAI function calling
+ */
+function zodToOpenAIParameters(zodSchema: BaseTool["inputSchema"]): Record<string, unknown> {
+  const jsonSchema = zodToJsonSchema(zodSchema, { $refStrategy: "none" });
+  // Remove $schema property that OpenAI doesn't want
+  const { $schema, ...parameters } = jsonSchema as Record<string, unknown>;
+  return parameters;
+}
 
 /**
  * Wraps a tool with context binding and database logging
@@ -25,22 +36,16 @@ function wrapTool(toolName: string, tool: BaseTool, ctx: ToolContext) {
   return {
     description: tool.description,
     inputSchema: tool.inputSchema,
+    // Pre-converted JSON Schema for OpenAI function calling
+    parameters: zodToOpenAIParameters(tool.inputSchema),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     execute: async (params: any) => {
       const input = params as Record<string, unknown>;
       console.log(`[Tool] ${toolName} starting with input:`, input);
 
-      // Validate input against Zod schema before execution
-      const validation = tool.inputSchema.safeParse(params);
-      if (!validation.success) {
-        const errors = validation.error.issues.map(
-          (issue) => `${issue.path.join(".")}: ${issue.message}`
-        ).join("; ");
-        console.error(`[Tool] ${toolName} validation failed:`, errors);
-        throw new Error(`Invalid input: ${errors}`);
-      }
+      const startTime = performance.now();
 
-      // Save tool call to DB with "running" status
+      // Save tool call to DB first (so it shows in UI even if validation fails)
       const savedToolCall = await startToolCall({
         threadId: ctx.threadId,
         messageId: ctx.messageId,
@@ -54,7 +59,31 @@ function wrapTool(toolName: string, tool: BaseTool, ctx: ToolContext) {
       console.log(`[Tool] ${toolName} publishing start event`);
       await publishToolStart(ctx.messageId, toolName);
 
-      const startTime = performance.now();
+      // Validate input against Zod schema
+      const validation = tool.inputSchema.safeParse(params);
+      if (!validation.success) {
+        const errors = validation.error.issues.map(
+          (issue) => `${issue.path.join(".")}: ${issue.message}`
+        ).join("; ");
+        const errorMessage = `Invalid input: ${errors}`;
+        console.error(`[Tool] ${toolName} validation failed:`, errors);
+        
+        const durationMs = Math.round(performance.now() - startTime);
+        
+        // Complete the tool call with error output (so it displays in UI)
+        await completeToolCall({
+          messageId: ctx.messageId,
+          toolName,
+          output: { error: errorMessage },
+          durationMs,
+        });
+        
+        // Publish tool complete so frontend updates
+        await publishToolComplete(ctx.messageId, toolName);
+        
+        throw new Error(errorMessage);
+      }
+
       const result = await tool.execute(params, { ctx });
       const durationMs = Math.round(performance.now() - startTime);
       const output = result as Record<string, unknown>;
