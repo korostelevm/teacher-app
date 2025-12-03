@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Card } from "@/components/ui/card";
+import { useAbly } from "@/hooks/use-ably";
+import { useUser } from "@/hooks/use-user";
 
 interface Thread {
   _id: string;
@@ -18,22 +20,51 @@ interface ThreadsListProps {
 export function ThreadsList({ onSelectThread, selectedThreadId }: ThreadsListProps) {
   const [threads, setThreads] = useState<Thread[]>([]);
   const [loading, setLoading] = useState(true);
+  const ably = useAbly();
+  const { user } = useUser();
 
+  const fetchThreads = useCallback(async () => {
+    try {
+      const response = await fetch("/api/threads");
+      const data = await response.json();
+      setThreads(data.threads || []);
+    } catch (error) {
+      console.error("Failed to fetch threads:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Initial fetch
   useEffect(() => {
-    const fetchThreads = async () => {
-      try {
-        const response = await fetch("/api/threads");
-        const data = await response.json();
-        setThreads(data.threads || []);
-      } catch (error) {
-        console.error("Failed to fetch threads:", error);
-      } finally {
-        setLoading(false);
-      }
+    fetchThreads();
+  }, [fetchThreads]);
+
+  // Subscribe to real-time thread updates
+  useEffect(() => {
+    if (!ably || !user?._id) return;
+
+    const channel = ably.channels.get(`user:${user._id}`);
+    
+    const handleThreadUpdate = () => {
+      console.log("[ThreadsList] Received thread update, refetching list");
+      fetchThreads();
     };
 
-    fetchThreads();
-  }, []);
+    const handleThreadCreate = () => {
+      console.log("[ThreadsList] Received new thread, refetching list");
+      fetchThreads();
+    };
+
+    channel.subscribe("thread:update", handleThreadUpdate);
+    channel.subscribe("thread:create", handleThreadCreate);
+    console.log(`[ThreadsList] Subscribed to user:${user._id} for thread events`);
+
+    return () => {
+      channel.unsubscribe("thread:update", handleThreadUpdate);
+      channel.unsubscribe("thread:create", handleThreadCreate);
+    };
+  }, [ably, user?._id, fetchThreads]);
 
   if (loading) {
     return <div className="p-4">Loading threads...</div>;

@@ -56,6 +56,10 @@ describe("Thread Namer Worker", () => {
         },
       }));
 
+      vi.doMock("@/lib/ably", () => ({
+        publishThreadUpdate: vi.fn(),
+      }));
+
       const mockGenerate = vi.fn().mockResolvedValue({
         title: "7th Grade Fractions Lesson",
       });
@@ -78,6 +82,7 @@ describe("Thread Namer Worker", () => {
       (Thread.findById as Mock).mockResolvedValue({
         _id: mockObjectId("thread1"),
         title: "Chat - 12/1/2024",
+        ownerId: mockObjectId("user1"),
       });
 
       (Message.countDocuments as Mock).mockResolvedValue(2);
@@ -114,7 +119,7 @@ describe("Thread Namer Worker", () => {
       });
     });
 
-    it("should skip threads with message counts other than 2 or 4", async () => {
+    it("should skip threads with message counts outside 2-5 range", async () => {
       vi.resetModules();
 
       vi.doMock("@/models/message", () => ({
@@ -152,7 +157,7 @@ describe("Thread Namer Worker", () => {
         title: "Chat - 12/1/2024",
       });
 
-      // Thread has 6 messages - should skip (not 2 or 4)
+      // Thread has 6 messages - should skip (outside 2-5 range)
       (Message.countDocuments as Mock).mockResolvedValue(6);
 
       queueThreadNaming(threadId);
@@ -163,6 +168,78 @@ describe("Thread Namer Worker", () => {
 
       // Should NOT update the thread
       expect(Thread.findByIdAndUpdate).not.toHaveBeenCalled();
+    });
+
+    it("should run on 3rd message (greeting flow - AI starts)", async () => {
+      vi.resetModules();
+
+      vi.doMock("@/models/message", () => ({
+        Message: {
+          find: vi.fn(),
+          countDocuments: vi.fn(),
+        },
+      }));
+
+      vi.doMock("@/models/thread", () => ({
+        Thread: {
+          findById: vi.fn(),
+          findByIdAndUpdate: vi.fn(),
+        },
+      }));
+
+      vi.doMock("@/lib/ably", () => ({
+        publishThreadUpdate: vi.fn(),
+      }));
+
+      const mockGenerate = vi.fn().mockResolvedValue({
+        title: "Fractions Help Request",
+      });
+
+      vi.doMock("@/core/agent", () => ({
+        Agent: vi.fn().mockImplementation(() => ({
+          generateFromPrompt: mockGenerate,
+        })),
+      }));
+
+      const { Message } = await import("@/models/message");
+      const { Thread } = await import("@/models/thread");
+      const { queueThreadNaming } = await import(
+        "@/workers/thread-namer-worker"
+      );
+
+      const threadId = mockObjectId("thread2c").toString();
+
+      (Thread.findById as Mock).mockResolvedValue({
+        _id: mockObjectId("thread2c"),
+        title: "Chat - 12/1/2024",
+        ownerId: mockObjectId("user1"),
+      });
+
+      // Thread has 3 messages (greeting flow: AI greeting + user + AI response)
+      (Message.countDocuments as Mock).mockResolvedValue(3);
+
+      (Message.find as Mock).mockReturnValue({
+        sort: vi.fn().mockReturnValue({
+          limit: vi.fn().mockResolvedValue([
+            { role: "assistant", content: "Hello! How can I help you today?" },
+            { role: "user", content: "I need help with fractions" },
+            { role: "assistant", content: "Sure, let me help you with that!" },
+          ]),
+        }),
+      });
+
+      (Thread.findByIdAndUpdate as Mock).mockResolvedValue({});
+
+      queueThreadNaming(threadId);
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Should call the LLM
+      expect(mockGenerate).toHaveBeenCalled();
+
+      // Should update the thread
+      expect(Thread.findByIdAndUpdate).toHaveBeenCalledWith(threadId, {
+        title: "Fractions Help Request",
+      });
     });
 
     it("should run on 4th message for better context", async () => {
@@ -180,6 +257,10 @@ describe("Thread Namer Worker", () => {
           findById: vi.fn(),
           findByIdAndUpdate: vi.fn(),
         },
+      }));
+
+      vi.doMock("@/lib/ably", () => ({
+        publishThreadUpdate: vi.fn(),
       }));
 
       const mockGenerate = vi.fn().mockResolvedValue({
@@ -203,6 +284,7 @@ describe("Thread Namer Worker", () => {
       (Thread.findById as Mock).mockResolvedValue({
         _id: mockObjectId("thread2b"),
         title: "Chat - 12/1/2024",
+        ownerId: mockObjectId("user1"),
       });
 
       // Thread has 4 messages - should process

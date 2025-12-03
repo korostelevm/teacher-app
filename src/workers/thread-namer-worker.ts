@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { Message } from "@/models/message";
 import { Thread } from "@/models/thread";
+import { publishThreadUpdate } from "@/lib/ably";
 
 /**
  * Thread Namer Worker
@@ -66,10 +67,13 @@ async function generateThreadTitle(threadId: string) {
       return;
     }
 
-    // Only name threads on 2nd or 4th message (gives two chances to capture the topic)
-    if (messageCount !== 2 && messageCount !== 4) {
+    // Name threads on 2nd-5th message (covers both greeting and non-greeting flows)
+    // - Without greeting: assistant messages are at counts 2, 4
+    // - With greeting: assistant messages are at counts 1, 3, 5
+    // The "already has custom title" check prevents redundant work
+    if (messageCount < 2 || messageCount > 5) {
       console.log(
-        `[ThreadNamer] Thread has ${messageCount} messages, skipping (need 2 or 4)`
+        `[ThreadNamer] Thread has ${messageCount} messages, skipping (need 2-5)`
       );
       return;
     }
@@ -109,6 +113,10 @@ async function generateThreadTitle(threadId: string) {
     // Update thread title
     await Thread.findByIdAndUpdate(threadId, { title });
     console.log(`[ThreadNamer] Thread title updated successfully`);
+
+    // Notify the UI via Ably
+    await publishThreadUpdate(thread.ownerId.toString(), threadId, { title });
+    console.log(`[ThreadNamer] Published thread update to UI`);
   } catch (error) {
     console.error(`[ThreadNamer] Error generating title:`, error);
   }

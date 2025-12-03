@@ -72,3 +72,30 @@ export async function publishToolComplete(messageId: string, toolName: string) {
   console.log(`[Ably] Published tool:complete`);
 }
 
+/**
+ * Get an Ably channel for user-specific events
+ */
+export function getUserChannel(userId: string) {
+  return getAblyClient().channels.get(`user:${userId}`);
+}
+
+/**
+ * Publish thread update event (e.g., title changed)
+ */
+export async function publishThreadUpdate(userId: string, threadId: string, updates: { title?: string }) {
+  console.log(`[Ably] Publishing thread:update for thread ${threadId}`);
+  const channel = getUserChannel(userId);
+  await channel.publish("thread:update", { threadId, ...updates });
+  console.log(`[Ably] Published thread:update`);
+}
+
+/**
+ * Publish thread created event
+ */
+export async function publishThreadCreated(userId: string, thread: { _id: string; title: string; createdAt: string; updatedAt: string }) {
+  console.log(`[Ably] Publishing thread:create for thread ${thread._id}`);
+  const channel = getUserChannel(userId);
+  await channel.publish("thread:create", thread);
+  console.log(`[Ably] Published thread:create`);
+}
+

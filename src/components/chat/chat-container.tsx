@@ -94,6 +94,30 @@ export function ChatContainer({
   
   // Track current assistant message
   const currentAssistantMessageIdRef = useRef<string | null>(null);
+  
+  // Timeout ref for re-enabling input after 15 seconds
+  const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Clear timeout and re-enable input after 15 seconds of no response
+  useEffect(() => {
+    if (isLoading) {
+      loadingTimeoutRef.current = setTimeout(() => {
+        console.warn("[ChatContainer] Response timeout - re-enabling input");
+        setIsLoading(false);
+      }, 15000);
+    } else {
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+        loadingTimeoutRef.current = null;
+      }
+    }
+    
+    return () => {
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+      }
+    };
+  }, [isLoading]);
 
   // Load messages when thread changes
   useEffect(() => {

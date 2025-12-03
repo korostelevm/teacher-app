@@ -3,6 +3,7 @@ import { chatAgent } from "@/core/agent";
 import { ThreadManager } from "@/core/thread-manager";
 import { createMessage } from "@/models/message";
 import { queueMemoryExtraction } from "@/workers/thread-update-worker";
+import { publishThreadCreated } from "@/lib/ably";
 
 /**
  * Chat API route handler for processing messages
@@ -41,6 +42,14 @@ export async function POST(request: NextRequest) {
           userId
         );
         currentThreadId = newThread._id.toString();
+        
+        // Notify UI about new thread
+        await publishThreadCreated(userId, {
+          _id: currentThreadId,
+          title: newThread.title,
+          createdAt: newThread.createdAt.toISOString(),
+          updatedAt: newThread.updatedAt.toISOString(),
+        });
       } catch (error) {
         console.error("[Chat API] Failed to create thread:", error);
         return NextResponse.json(
