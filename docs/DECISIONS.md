@@ -167,6 +167,17 @@ Chose Google OAuth with server-side cookie sessions over alternatives (magic lin
 
 ---
 
+## Cross-Team Impact and Scalability
+
+### Tool Framework Extensibility
+Custom registry with context injection, DB logging, and Ably events. Enables independent tool development — AI team adds tools, infra team handles monitoring. Security/audit built-in without per-tool boilerplate.
+
+### Worker Decoupling
+In-process queues decouple background tasks from API. Feature teams add workers without API changes; ops scales them independently. Non-blocking for user-facing latency.
+
+### Temporal for Orchestration
+Upgrade path for durable workflows with retries and visibility. Enables cross-team orchestration (AI defines logic, infra manages execution) without tight coupling.
+
 ## Assumptions
 
 - **Evaluators have Google accounts** — Required for the live demo
