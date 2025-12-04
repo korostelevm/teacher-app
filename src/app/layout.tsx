@@ -2,9 +2,12 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import { ThemeProvider } from "next-themes";
 import "./globals.css";
+import { connectDB } from "@/lib/mongodb";
 
 // Initialize database connection at app level
-import "@/lib/db";
+if (typeof window === "undefined") {
+  connectDB().catch(console.error);
+}
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
