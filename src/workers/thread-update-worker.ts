@@ -55,6 +55,8 @@ Do not include:
 });
 
 type Job = { threadId: string; userId: string };
+// Demo-only in-process queue; in production this should be a durable workflow
+// system (e.g., Temporal.io) for retries, visibility, and fault tolerance.
 const queue: Job[] = [];
 let processing = false;
 

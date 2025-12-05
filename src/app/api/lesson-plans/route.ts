@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUserLessonPlans } from "@/models/lesson-plan";
 import { connectDB } from "@/lib/mongodb";
+import { getSessionUserId } from "@/lib/session";
 
 /**
  * GET /api/lesson-plans - Get all lesson plans for the current user
@@ -8,8 +9,8 @@ import { connectDB } from "@/lib/mongodb";
 export async function GET(request: NextRequest) {
   try {
     await connectDB();
-    
-    const userId = request.cookies.get("userId")?.value;
+
+    const userId = await getSessionUserId(request);
     if (!userId) {
       return NextResponse.json(
         { error: "Unauthorized" },

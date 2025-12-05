@@ -3,6 +3,7 @@ import localFont from "next/font/local";
 import { ThemeProvider } from "next-themes";
 import "./globals.css";
 import { connectDB } from "@/lib/mongodb";
+import { LogRocketProvider } from "@/components/logrocket-provider";
 
 // Initialize database connection at app level
 if (typeof window === "undefined") {
@@ -41,6 +42,7 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
+          <LogRocketProvider />
           {children}
         </ThemeProvider>
       </body>

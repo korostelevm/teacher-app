@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { User } from "@/models/user";
-import { Session } from "@/models/session";
 import { createSessionToken } from "@/lib/session";
+import { connectDB } from "@/lib/mongodb";
 
 /**
  * GET /api/auth/redirect
@@ -20,6 +20,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    await connectDB();
     const clientId = process.env.GOOGLE_CLIENT_ID || "GOOGLE_CLIENT_ID_MISSING";
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET || "GOOGLE_CLIENT_SECRET_MISSING";
     const redirectUri = process.env.GOOGLE_CALLBACK_URL || "http://localhost:3000/api/auth/redirect";
@@ -93,20 +94,6 @@ export async function GET(request: NextRequest) {
       }
       await user.save();
     }
-
-    // Create or update session in database
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7); // 7 days from now
-
-    await Session.findOneAndUpdate(
-      { userId: user._id.toString() },
-      {
-        userId: user._id.toString(),
-        token: user._id.toString(),
-        expiresAt,
-      },
-      { upsert: true, new: true }
-    );
 
     // Redirect to home with auth
     const response = NextResponse.redirect(new URL("/", origin));

@@ -49,6 +49,8 @@ Examples of good titles:
 }
 
 type Job = { threadId: string };
+// Demo-only in-process queue; for production use a durable workflow engine
+// like Temporal.io to gain retries, visibility, and fault tolerance.
 const queue: Job[] = [];
 let processing = false;
 

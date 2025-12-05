@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { User } from "@/models/user";
+import { getSessionUserId } from "@/lib/session";
+import { connectDB } from "@/lib/mongodb";
 
 /**
  * GET /api/auth/user
@@ -7,7 +9,9 @@ import { User } from "@/models/user";
  */
 export async function GET(request: NextRequest) {
   try {
-    const userId = request.cookies.get("userId")?.value;
+    await connectDB();
+
+    const userId = await getSessionUserId(request);
 
     if (!userId) {
       return NextResponse.json({ user: null });
