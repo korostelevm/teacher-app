@@ -72,7 +72,6 @@ The assignment suggests PostgreSQL with pgvector as the default.
 
 ---
 
-### Real-Time Streaming: Ably Pub/Sub
 
 ### Observability: LogRocket Session Replay
 - Enabled client-side via `LogRocketProvider` in `app/layout.tsx`.
@@ -80,6 +79,8 @@ The assignment suggests PostgreSQL with pgvector as the default.
 - Overrides: `NEXT_PUBLIC_LOGROCKET_APP_ID`, `NEXT_PUBLIC_LOGROCKET_SERVER_URL`.
 - Runs on all hosts (including localhost, given this is demo).
 - Proxy rationale: proxying via CloudFront helps avoid ad blockers/corp network blocks; I keep this CloudFront proxy available for projects like these.
+
+### Real-Time Streaming: Ably Pub/Sub
 
 Chose Ably over Server-Sent Events (SSE), WebSockets, or other alternatives.
 
