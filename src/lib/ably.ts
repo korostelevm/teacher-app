@@ -18,17 +18,17 @@ function getAblyClient() {
 
 /**
  * Get an Ably channel for a chat message
- * @param messageId - The message ID to create a channel for
+ * @param channelName - The full channel name (e.g., chat:userId:messageId)
  */
-export function getChatChannel(messageId: string) {
-  return getAblyClient().channels.get(`chat:${messageId}`);
+export function getChatChannel(channelName: string) {
+  return getAblyClient().channels.get(channelName);
 }
 
 /**
  * Publish a stream text chunk
  */
-export async function publishStreamText(messageId: string, text: string) {
-  const channel = getChatChannel(messageId);
+export async function publishStreamText(channelName: string, messageId: string, text: string) {
+  const channel = getChatChannel(channelName);
   await channel.publish("stream:text", { text, messageId });
 }
 
@@ -36,28 +36,29 @@ export async function publishStreamText(messageId: string, text: string) {
  * Publish stream completion
  */
 export async function publishStreamComplete(
+  channelName: string,
   messageId: string, 
   finalResponse: string,
   memoriesUsed?: { id: string; content: string; deleted?: boolean }[]
 ) {
-  const channel = getChatChannel(messageId);
+  const channel = getChatChannel(channelName);
   await channel.publish("stream:complete", { messageId, finalResponse, memoriesUsed });
 }
 
 /**
  * Publish stream error
  */
-export async function publishStreamError(messageId: string, error: string) {
-  const channel = getChatChannel(messageId);
+export async function publishStreamError(channelName: string, messageId: string, error: string) {
+  const channel = getChatChannel(channelName);
   await channel.publish("stream:error", { messageId, error });
 }
 
 /**
  * Publish tool start event (minimal - frontend fetches details from DB)
  */
-export async function publishToolStart(messageId: string, toolName: string) {
+export async function publishToolStart(channelName: string, messageId: string, toolName: string) {
   console.log(`[Ably] Publishing tool:start for ${toolName} on channel chat:${messageId}`);
-  const channel = getChatChannel(messageId);
+  const channel = getChatChannel(channelName);
   await channel.publish("tool:start", { messageId, toolName });
   console.log(`[Ably] Published tool:start`);
 }
@@ -65,9 +66,9 @@ export async function publishToolStart(messageId: string, toolName: string) {
 /**
  * Publish tool complete event (minimal - frontend fetches details from DB)
  */
-export async function publishToolComplete(messageId: string, toolName: string) {
+export async function publishToolComplete(channelName: string, messageId: string, toolName: string) {
   console.log(`[Ably] Publishing tool:complete for ${toolName} on channel chat:${messageId}`);
-  const channel = getChatChannel(messageId);
+  const channel = getChatChannel(channelName);
   await channel.publish("tool:complete", { messageId, toolName });
   console.log(`[Ably] Published tool:complete`);
 }

@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getThreadMessages } from "@/models/message";
 import { getThreadToolCalls } from "@/models/tool-call";
+import { Thread } from "@/models/thread";
+import { connectDB } from "@/lib/mongodb";
+import { getSessionUserId } from "@/lib/session";
 
 /**
  * GET /api/threads/[threadId]/messages - Get all messages in a thread
@@ -10,12 +13,18 @@ export async function GET(
   { params }: { params: Promise<{ threadId: string }> }
 ) {
   try {
-    const userId = request.cookies.get("userId")?.value;
+    await connectDB();
+    const userId = await getSessionUserId(request);
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { threadId } = await params;
+
+    const thread = await Thread.findById(threadId);
+    if (!thread || thread.ownerId.toString() !== userId) {
+      return NextResponse.json({ error: "Thread not found or access denied" }, { status: 403 });
+    }
     
     // Fetch messages and tool calls in parallel
     const [messages, toolCalls] = await Promise.all([

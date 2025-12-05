@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getMessageToolCalls } from "@/models/tool-call";
+import { connectDB } from "@/lib/mongodb";
+import { getSessionUserId } from "@/lib/session";
 
 /**
  * GET /api/tool-calls/[messageId] - Get tool calls for a message
@@ -9,13 +11,16 @@ export async function GET(
   { params }: { params: Promise<{ messageId: string }> }
 ) {
   try {
-    const userId = request.cookies.get("userId")?.value;
+    await connectDB();
+    const userId = await getSessionUserId(request);
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { messageId } = await params;
-    const toolCalls = await getMessageToolCalls(messageId);
+    const toolCalls = (await getMessageToolCalls(messageId)).filter(
+      (tc) => tc.userId?.toString() === userId
+    );
 
     const transformedToolCalls = toolCalls.map((tc) => ({
       toolName: tc.toolName,

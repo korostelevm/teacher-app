@@ -66,11 +66,31 @@ export function useChatStream({
         });
       }
 
-      // Use the assistantMessageId as the request message ID
       const requestMessageId = assistantMessageId;
 
+      // Send request to chat endpoint
+      const response = await fetch(chatEndpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ content, messageId: assistantMessageId, threadId, isInit }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to send message");
+      }
+
+      const data = (await response.json()) as ChatResponse & { channel: string };
+
+      const channelName = data.channel;
+      if (!channelName) {
+        throw new Error("Missing channel name in chat response");
+      }
+
       // Subscribe to the channel for this message
-      const channel = ably.channels.get(`chat:${requestMessageId}`);
+      const channel = ably.channels.get(channelName);
       channelRef.current = channel;
 
       // Clear previous subscriptions
@@ -148,21 +168,7 @@ export function useChatStream({
         unsubscribeToolComplete,
       ];
 
-      // Send request to chat endpoint
-      const response = await fetch(chatEndpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ content, messageId: requestMessageId, threadId, isInit }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || "Failed to send message");
-      }
-
-      return await response.json();
+      return data;
     },
     [
       ably,

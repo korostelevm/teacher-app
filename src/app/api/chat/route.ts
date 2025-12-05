@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { chatAgent } from "@/core/agent";
 import { ThreadManager } from "@/core/thread-manager";
+import { Thread } from "@/models/thread";
 import { createMessage } from "@/models/message";
 import { queueMemoryExtraction } from "@/workers/thread-update-worker";
 import { publishThreadCreated } from "@/lib/ably";
+import { connectDB } from "@/lib/mongodb";
+import { getSessionUserId } from "@/lib/session";
 
 /**
  * Chat API route handler for processing messages
@@ -11,8 +14,10 @@ import { publishThreadCreated } from "@/lib/ably";
  */
 export async function POST(request: NextRequest) {
   try {
+    await connectDB();
+
     // Check authentication
-    const userId = request.cookies.get("userId")?.value;
+    const userId = await getSessionUserId(request);
     if (!userId) {
       return NextResponse.json(
         { error: "Unauthorized" },
@@ -57,6 +62,15 @@ export async function POST(request: NextRequest) {
           { status: 500 }
         );
       }
+    } else {
+      // Verify thread ownership
+      const existingThread = await Thread.findById(currentThreadId);
+      if (!existingThread || existingThread.ownerId.toString() !== userId) {
+        return NextResponse.json(
+          { error: "Thread not found or access denied" },
+          { status: 403 }
+        );
+      }
     }
 
     // Save user message to database (skip for init requests - agent starts first)
@@ -80,6 +94,9 @@ export async function POST(request: NextRequest) {
       }
     }
     
+    // Build channel name scoped to the authenticated user
+    const channelName = `chat:${userId}:${msgId}`;
+
     // Start streaming in the background - don't await it
     // This allows us to return the HTTP response immediately
     // Message is guaranteed persisted at this point (await above)
@@ -87,6 +104,7 @@ export async function POST(request: NextRequest) {
       threadId: currentThreadId,
       responseMessageId: msgId,
       userId,
+      channelName,
     }).catch((error) => {
       console.error("[Chat API] Agent error:", error);
     });
@@ -94,7 +112,7 @@ export async function POST(request: NextRequest) {
     // Return immediately - streaming happens in background
     return NextResponse.json({
       messageId: msgId,
-      channel: `chat:${msgId}`,
+      channel: channelName,
       threadId: currentThreadId,
       timestamp: new Date().toISOString(),
     });

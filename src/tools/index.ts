@@ -33,6 +33,7 @@ function zodToOpenAIParameters(zodSchema: BaseTool["inputSchema"]): Record<strin
  * Wraps a tool with context binding and database logging
  */
 function wrapTool(toolName: string, tool: BaseTool, ctx: ToolContext) {
+  const channelName = ctx.channelName || `chat:${ctx.user._id}:${ctx.messageId}`;
   return {
     description: tool.description,
     inputSchema: tool.inputSchema,
@@ -57,7 +58,7 @@ function wrapTool(toolName: string, tool: BaseTool, ctx: ToolContext) {
 
       // Publish tool call start (frontend will fetch from DB)
       console.log(`[Tool] ${toolName} publishing start event`);
-      await publishToolStart(ctx.messageId, toolName);
+      await publishToolStart(channelName, ctx.messageId, toolName);
 
       // Validate input against Zod schema
       const validation = tool.inputSchema.safeParse(params);
@@ -79,7 +80,7 @@ function wrapTool(toolName: string, tool: BaseTool, ctx: ToolContext) {
         });
         
         // Publish tool complete so frontend updates
-        await publishToolComplete(ctx.messageId, toolName);
+        await publishToolComplete(channelName, ctx.messageId, toolName);
         
         throw new Error(errorMessage);
       }
@@ -100,7 +101,7 @@ function wrapTool(toolName: string, tool: BaseTool, ctx: ToolContext) {
 
       // Publish tool call complete (frontend will fetch updated record)
       console.log(`[Tool] ${toolName} publishing complete event`);
-      await publishToolComplete(ctx.messageId, toolName);
+      await publishToolComplete(channelName, ctx.messageId, toolName);
 
       return result;
     },

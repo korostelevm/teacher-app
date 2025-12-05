@@ -1,12 +1,21 @@
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import Ably from "ably";
+import { getSessionUserId } from "@/lib/session";
 
 /**
  * Ably authentication route for frontend token requests
  * Generates capability tokens for client connections
  */
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
+    const userId = await getSessionUserId(request);
+    if (!userId) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
     const apiKey = process.env.ABLY_API_KEY;
 
     if (!apiKey) {
@@ -19,17 +28,16 @@ export async function GET(request: Request) {
     // Create Ably REST client
     const ably = new Ably.Rest({ key: apiKey });
 
-    // Generate a token request for the client
-    // Using clientId from query params or generating a random one
-    const { searchParams } = new URL(request.url);
-    const clientId = searchParams.get("clientId") || `client-${Date.now()}`;
+    // Generate a token request for the client scoped to this user
+    const clientId = userId;
 
-    // Request token with publish/subscribe capabilities
+    // Request token with publish/subscribe capabilities limited to this user
     const tokenRequest = await ably.auth.createTokenRequest({
       clientId,
       capability: {
-        // Allow publish/subscribe to chat channels
-        "chat:*": ["publish", "subscribe", "presence"],
+        // Client only needs to subscribe; server publishes via API key
+        [`chat:${userId}:*`]: ["subscribe"],
+        [`user:${userId}`]: ["subscribe"],
       },
     });
 

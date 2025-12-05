@@ -7,5 +7,6 @@ export interface ToolContext {
   user: IUser;
   threadId: string;
   messageId: string;
+  channelName?: string;
 }
 

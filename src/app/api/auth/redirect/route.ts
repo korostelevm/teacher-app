@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { User } from "@/models/user";
 import { Session } from "@/models/session";
+import { createSessionToken } from "@/lib/session";
 
 /**
  * GET /api/auth/redirect
@@ -110,8 +111,9 @@ export async function GET(request: NextRequest) {
     // Redirect to home with auth
     const response = NextResponse.redirect(new URL("/", origin));
 
-    // Set user session cookie
-    response.cookies.set("userId", user._id.toString(), {
+    // Set signed session cookie (httpOnly)
+    const sessionToken = await createSessionToken(user._id.toString());
+    response.cookies.set("session", sessionToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",

@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Memory, softDeleteMemories } from "@/models/memory";
+import { connectDB } from "@/lib/mongodb";
+import { getSessionUserId } from "@/lib/session";
 
 export async function GET(request: NextRequest) {
   try {
-    const userId = request.cookies.get("userId")?.value;
+    await connectDB();
+    const userId = await getSessionUserId(request);
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -19,7 +22,8 @@ export async function GET(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const userId = request.cookies.get("userId")?.value;
+    await connectDB();
+    const userId = await getSessionUserId(request);
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

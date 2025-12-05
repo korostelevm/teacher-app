@@ -74,8 +74,10 @@ export class Agent {
     threadId: string;
     responseMessageId: string;
     userId: string;
+    channelName?: string;
   }): Promise<string> {
     const { threadId, responseMessageId, userId } = params;
+    const channelName = params.channelName ?? `chat:${userId}:${responseMessageId}`;
 
     try {
       const [user, threadMessages, memories] = await Promise.all([
@@ -103,7 +105,7 @@ export class Agent {
       }
       
       const tools = createTools(
-        { user: user as IUser, threadId, messageId: responseMessageId },
+        { user: user as IUser, threadId, messageId: responseMessageId, channelName },
         this.toolNames
       );
 
@@ -287,7 +289,7 @@ export class Agent {
                 .replace(/\\n/g, '\n')
                 .replace(/\\"/g, '"')
                 .replace(/\u0000/g, '\\');   // Restore backslashes
-              await publishStreamText(responseMessageId, unescaped);
+              await publishStreamText(channelName, responseMessageId, unescaped);
               streamedLength += toStream.length;
             }
           }
@@ -336,12 +338,13 @@ export class Agent {
         queueThreadNaming(threadId);
       }
 
-      await publishStreamComplete(responseMessageId, responseText, memoriesUsed);
+      await publishStreamComplete(channelName, responseMessageId, responseText, memoriesUsed);
       return responseText;
     } catch (error) {
       console.error("[Agent] Error:", error);
       try {
         await publishStreamError(
+          channelName,
           responseMessageId,
           error instanceof Error ? error.message : "Unknown error"
         );

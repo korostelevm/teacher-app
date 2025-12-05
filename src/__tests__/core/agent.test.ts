@@ -252,6 +252,7 @@ describe("Agent", () => {
           threadId,
           responseMessageId,
           userId,
+          channelName: `chat:${userId}:${responseMessageId}`,
         })
       ).rejects.toThrow("User not found");
     });
@@ -311,6 +312,7 @@ describe("Agent", () => {
         threadId,
         responseMessageId,
         userId,
+        channelName: `chat:${userId}:${responseMessageId}`,
       });
 
       expect(result).toBe("Hello! How can I help you today?");
@@ -390,6 +392,7 @@ describe("Agent", () => {
         threadId,
         responseMessageId,
         userId,
+        channelName: `chat:${userId}:${responseMessageId}`,
       });
 
       // Verify OpenAI was called with messages from history
@@ -465,6 +468,7 @@ describe("Agent", () => {
         threadId,
         responseMessageId,
         userId,
+        channelName: `chat:${userId}:${responseMessageId}`,
       });
 
       // Check system prompt contains memory info
@@ -568,6 +572,7 @@ describe("Agent", () => {
         threadId,
         responseMessageId,
         userId,
+        channelName: `chat:${userId}:${responseMessageId}`,
       });
 
       expect(mockToolExecute).toHaveBeenCalledWith({});
@@ -659,6 +664,7 @@ describe("Agent", () => {
         threadId,
         responseMessageId,
         userId,
+        channelName: `chat:${userId}:${responseMessageId}`,
       });
 
       expect(mockToolExecute).toHaveBeenCalled();
@@ -687,6 +693,7 @@ describe("Agent", () => {
       ).rejects.toThrow("Database error");
 
       expect(publishStreamError).toHaveBeenCalledWith(
+        expect.any(String), // channelName
         responseMessageId,
         "Database error"
       );
@@ -737,11 +744,13 @@ describe("Agent", () => {
         threadId,
         responseMessageId,
         userId,
+        channelName: `chat:${userId}:${responseMessageId}`,
       });
 
       // Verify streaming was called
       expect(publishStreamText).toHaveBeenCalled();
       expect(publishStreamComplete).toHaveBeenCalledWith(
+        expect.any(String), // channelName
         responseMessageId,
         responseText,
         expect.any(Array)

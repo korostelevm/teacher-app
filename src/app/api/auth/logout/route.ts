@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Session } from "@/models/session";
+import { verifySessionToken } from "@/lib/session";
 
 /**
  * POST /api/auth/logout
@@ -7,7 +8,7 @@ import { Session } from "@/models/session";
  */
 export async function POST(request: NextRequest) {
   try {
-    const userId = request.cookies.get("userId")?.value;
+    const userId = await verifySessionToken(request.cookies.get("session")?.value);
 
     // Invalidate session in database if userId exists
     if (userId) {
@@ -18,8 +19,8 @@ export async function POST(request: NextRequest) {
       { success: true, message: "Logged out successfully" }
     );
 
-    // Clear user session cookie
-    response.cookies.delete("userId");
+    // Clear session cookie
+    response.cookies.delete("session");
 
     return response;
   } catch (error) {

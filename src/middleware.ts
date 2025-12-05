@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { verifySessionToken } from "@/lib/session";
 
-export function middleware(request: NextRequest) {
-  const userId = request.cookies.get("userId")?.value;
+export async function middleware(request: NextRequest) {
+  const userId = await verifySessionToken(request.cookies.get("session")?.value);
   const pathname = request.nextUrl.pathname;
 
   // Allow auth routes without checking userId
