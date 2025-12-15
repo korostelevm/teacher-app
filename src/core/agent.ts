@@ -4,7 +4,7 @@ import { zodResponseFormat } from "openai/helpers/zod";
 import type { ChatCompletionMessageParam, ChatCompletionTool } from "openai/resources/chat/completions";
 import { openaiClient, getRawOpenAI } from "@/lib/openai";
 import {
-  publishStreamText,
+  createThrottledStreamPublisher,
   publishStreamComplete,
   publishStreamError,
 } from "@/lib/ably";
@@ -246,6 +246,9 @@ export class Agent {
           stream: true,
         });
 
+        // Create throttled publisher to avoid Ably rate limits
+        const streamPublisher = createThrottledStreamPublisher(channelName, responseMessageId);
+
         // Stream and parse the response field as it comes in
         let structuredContent = "";
         let inResponseField = false;
@@ -289,11 +292,15 @@ export class Agent {
                 .replace(/\\n/g, '\n')
                 .replace(/\\"/g, '"')
                 .replace(/\u0000/g, '\\');   // Restore backslashes
-              await publishStreamText(channelName, responseMessageId, unescaped);
+              // Use throttled publisher instead of direct publish
+              streamPublisher.push(unescaped);
               streamedLength += toStream.length;
             }
           }
         }
+
+        // Flush any remaining buffered text before completion
+        await streamPublisher.flush();
 
         // Parse the complete JSON for memory IDs
         try {

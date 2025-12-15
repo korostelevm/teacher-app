@@ -25,11 +25,90 @@ export function getChatChannel(channelName: string) {
 }
 
 /**
- * Publish a stream text chunk
+ * Publish a stream text chunk (direct, unbatched)
  */
 export async function publishStreamText(channelName: string, messageId: string, text: string) {
   const channel = getChatChannel(channelName);
   await channel.publish("stream:text", { text, messageId });
+}
+
+/**
+ * Throttled stream publisher - batches text chunks to avoid Ably rate limits
+ * Creates a publisher instance for a specific channel/message that buffers
+ * text and publishes at a controlled rate (max ~20/sec = 50ms intervals)
+ */
+export function createThrottledStreamPublisher(channelName: string, messageId: string) {
+  const PUBLISH_INTERVAL_MS = 50; // Max 20 publishes/second
+  let buffer = "";
+  let lastPublishTime = 0;
+  let pendingTimeout: NodeJS.Timeout | null = null;
+  let isFlushing = false;
+
+  const doPublish = async () => {
+    if (buffer.length === 0 || isFlushing) return;
+    
+    const textToPublish = buffer;
+    buffer = "";
+    lastPublishTime = Date.now();
+    
+    try {
+      const channel = getChatChannel(channelName);
+      await channel.publish("stream:text", { text: textToPublish, messageId });
+    } catch (error) {
+      console.error("[Ably] Throttled publish error:", error);
+    }
+  };
+
+  return {
+    /**
+     * Queue text to be published (will be batched and throttled)
+     */
+    push(text: string) {
+      buffer += text;
+      
+      const now = Date.now();
+      const timeSinceLastPublish = now - lastPublishTime;
+      
+      // If enough time has passed, publish immediately
+      if (timeSinceLastPublish >= PUBLISH_INTERVAL_MS) {
+        if (pendingTimeout) {
+          clearTimeout(pendingTimeout);
+          pendingTimeout = null;
+        }
+        doPublish();
+      } else if (!pendingTimeout) {
+        // Schedule a publish for later
+        const delay = PUBLISH_INTERVAL_MS - timeSinceLastPublish;
+        pendingTimeout = setTimeout(() => {
+          pendingTimeout = null;
+          doPublish();
+        }, delay);
+      }
+    },
+
+    /**
+     * Flush any remaining buffered text immediately
+     * Call this before stream completion
+     */
+    async flush() {
+      isFlushing = true;
+      if (pendingTimeout) {
+        clearTimeout(pendingTimeout);
+        pendingTimeout = null;
+      }
+      if (buffer.length > 0) {
+        const textToPublish = buffer;
+        buffer = "";
+        try {
+          const channel = getChatChannel(channelName);
+          await channel.publish("stream:text", { text: textToPublish, messageId });
+        } catch (error) {
+          console.error("[Ably] Flush publish error:", error);
+        }
+      }
+      isFlushing = false;
+    },
+  };
 }
 
 /**
