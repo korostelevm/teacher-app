@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { Trash2 } from "lucide-react";
+import { useAbly } from "@/hooks/use-ably";
+import { useUser } from "@/hooks/use-user";
 
 interface Memory {
   _id: string;
@@ -14,8 +16,10 @@ export function MemoriesList() {
   const [memories, setMemories] = useState<Memory[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const ably = useAbly();
+  const { user } = useUser();
 
-  const fetchMemories = async () => {
+  const fetchMemories = useCallback(async () => {
     try {
       const response = await fetch("/api/memories");
       const data = await response.json();
@@ -25,7 +29,7 @@ export function MemoriesList() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const deleteMemory = async (memoryId: string) => {
     setDeletingId(memoryId);
@@ -50,10 +54,23 @@ export function MemoriesList() {
 
   useEffect(() => {
     fetchMemories();
-    // Refresh every 10 seconds to pick up new memories
-    const interval = setInterval(fetchMemories, 10000);
-    return () => clearInterval(interval);
-  }, []);
+  }, [fetchMemories]);
+
+  // Realtime updates via Ably
+  useEffect(() => {
+    if (!ably || !user?._id) return;
+
+    const channel = ably.channels.get(`user:${user._id}`);
+    const handleMemoryUpdate = () => {
+      fetchMemories();
+    };
+
+    channel.subscribe("memory:update", handleMemoryUpdate);
+
+    return () => {
+      channel.unsubscribe("memory:update", handleMemoryUpdate);
+    };
+  }, [ably, user?._id, fetchMemories]);
 
   if (loading) {
     return <div className="p-4 text-sm text-muted-foreground">Loading memories...</div>;

@@ -12,7 +12,9 @@
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "test": "vitest",
-    "init-db": "node scripts/init-db.js"
+    "init-db": "node scripts/init-db.js",
+    "clear-threads": "npx ts-node --transpile-only scripts/clear-threads.ts",
+    "list-threads": "npx ts-node --transpile-only scripts/list-threads.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "2.0.11",

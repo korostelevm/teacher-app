@@ -89,6 +89,7 @@ export function ChatContainer({
   const [shouldAutoScroll, setShouldAutoScroll] = useState(false);
   const [threadId, setThreadId] = useState<string | null>(initialThreadId || null);
   const [hasTriggeredGreeting, setHasTriggeredGreeting] = useState(false);
+  const greetingTriggeredRef = useRef(false); // Sync guard for StrictMode
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
@@ -147,11 +148,12 @@ export function ChatContainer({
         }
       };
       loadMessages();
-    } else {
+    } else if (!triggerInitialGreeting) {
+      // Only clear messages if not triggering a greeting (greeting effect handles its own messages)
       setMessages([]);
       setThreadId(null);
     }
-  }, [initialThreadId]);
+  }, [initialThreadId, triggerInitialGreeting]);
 
   // Use chat stream hook for streaming
   const { sendMessage } = useChatStream({
@@ -271,25 +273,33 @@ export function ChatContainer({
   });
 
   // Trigger initial greeting when component mounts with triggerInitialGreeting=true
+  // Uses both ref (sync guard for StrictMode) and state (for React's dependency tracking)
   useEffect(() => {
-    if (triggerInitialGreeting && !hasTriggeredGreeting && !initialThreadId && messages.length === 0) {
+    // Ref provides synchronous guard against StrictMode double-run
+    if (greetingTriggeredRef.current) {
+      return;
+    }
+    
+    if (triggerInitialGreeting && !hasTriggeredGreeting && !initialThreadId) {
+      greetingTriggeredRef.current = true;
       setHasTriggeredGreeting(true);
       
       // Start a new conversation with the agent going first
-      const startConversation = async () => {
-        const assistantMessageId = crypto.randomUUID();
-        currentAssistantMessageIdRef.current = assistantMessageId;
-        
-        // Create placeholder assistant message for streaming
-        const assistantMessage: Message = {
-          id: assistantMessageId,
-          content: "",
-          role: "assistant",
-          toolCalls: [],
-        };
-        setMessages([assistantMessage]);
-        setIsLoading(true);
+      const assistantMessageId = crypto.randomUUID();
+      currentAssistantMessageIdRef.current = assistantMessageId;
+      
+      // Create placeholder assistant message for streaming
+      const assistantMessage: Message = {
+        id: assistantMessageId,
+        content: "",
+        role: "assistant",
+        toolCalls: [],
+      };
+      setMessages([assistantMessage]);
+      setIsLoading(true);
 
+      // Start the conversation asynchronously
+      (async () => {
         try {
           // Use isInit flag - agent will start without a user message
           const response = await sendMessage("", assistantMessageId, null, true);
@@ -308,11 +318,9 @@ export function ChatContainer({
           );
           currentAssistantMessageIdRef.current = null;
         }
-      };
-      
-      startConversation();
+      })();
     }
-  }, [triggerInitialGreeting, hasTriggeredGreeting, initialThreadId, messages.length, sendMessage]);
+  }, [triggerInitialGreeting, hasTriggeredGreeting, initialThreadId, sendMessage]);
 
   const handleSendMessage = async (content: string, files?: File[]) => {
     // Add user message immediately

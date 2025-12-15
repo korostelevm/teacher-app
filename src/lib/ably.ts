@@ -100,3 +100,13 @@ export async function publishThreadCreated(userId: string, thread: { _id: string
   console.log(`[Ably] Published thread:create`);
 }
 
+/**
+ * Publish memory update event (e.g., new or consolidated memories)
+ */
+export async function publishMemoryUpdate(userId: string) {
+  console.log(`[Ably] Publishing memory:update for user ${userId}`);
+  const channel = getUserChannel(userId);
+  await channel.publish("memory:update", { userId });
+  console.log(`[Ably] Published memory:update`);
+}
+

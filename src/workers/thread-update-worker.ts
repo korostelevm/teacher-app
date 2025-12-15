@@ -4,6 +4,7 @@ import { Message, type IMessage } from "@/models/message";
 import { Memory, type IMemory, findActiveMemories, softDeleteMemories, expireMemories } from "@/models/memory";
 import { getMessageToolCalls } from "@/models/tool-call";
 import { getUserLessonPlans, type ILessonPlan } from "@/models/lesson-plan";
+import { publishMemoryUpdate } from "@/lib/ably";
 
 /**
  * Build the memory output schema with lesson plan ID enum constraint
@@ -220,6 +221,13 @@ async function extractMemories(threadId: string, userId: string) {
   await expireMemories(userId);
 
   console.log(`[MemoryAgent] Memory update complete`);
+
+  // Notify clients to refresh memories
+  try {
+    await publishMemoryUpdate(userId);
+  } catch (error) {
+    console.error("[MemoryAgent] Failed to publish memory update:", error);
+  }
 }
 
 async function processQueue() {

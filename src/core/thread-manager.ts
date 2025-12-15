@@ -25,17 +25,17 @@ export class ThreadManager {
   }
 
   /**
-   * Get all threads for a user
+   * Get all active (non-deleted) threads for a user
    */
   static async getAllByOwner(ownerId: string | Types.ObjectId): Promise<IThread[]> {
-    return Thread.find({ ownerId }).sort({ createdAt: -1 });
+    return Thread.find({ ownerId, deletedAt: null }).sort({ createdAt: -1 });
   }
 
   /**
-   * Get all threads
+   * Get all active (non-deleted) threads
    */
   static async getAll(): Promise<IThread[]> {
-    return Thread.find().sort({ createdAt: -1 });
+    return Thread.find({ deletedAt: null }).sort({ createdAt: -1 });
   }
 
   /**
@@ -46,10 +46,18 @@ export class ThreadManager {
   }
 
   /**
-   * Delete a thread
+   * Hard delete a thread (permanent)
    */
   static async delete(id: string): Promise<boolean> {
     const result = await Thread.findByIdAndDelete(id);
+    return !!result;
+  }
+
+  /**
+   * Soft delete a thread
+   */
+  static async softDelete(id: string): Promise<boolean> {
+    const result = await Thread.findByIdAndUpdate(id, { deletedAt: new Date() });
     return !!result;
   }
 }
