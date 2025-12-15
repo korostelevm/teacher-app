@@ -156,6 +156,10 @@ flowchart TB
     end
 ```
 
+### Agent Completion Loop (Detailed)
+
+See [AGENT-LOOP.md](./AGENT-LOOP.md) for the full diagram including tool execution, memory tracking, and background memory extraction.
+
 ## Background Workers
 
 The system uses queue-based background workers for non-blocking post-processing.
